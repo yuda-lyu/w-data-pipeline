@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    
+    <meta charset="utf-8">
+    <title>fetch/runListFetch.mjs - Documentation</title>
+    
+    
+    <script src="scripts/prettify/prettify.js"></script>
+    <script src="scripts/prettify/lang-css.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc.css">
+    <script src="scripts/nav.js" defer></script>
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+
+<input type="checkbox" id="nav-trigger" class="nav-trigger" />
+<label for="nav-trigger" class="navicon-button x">
+  <div class="navicon"></div>
+</label>
+
+<label for="nav-trigger" class="overlay"></label>
+
+<nav >
+    
+    
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ContractError.html">ContractError</a></li><li><a href="PipelineError.html">PipelineError</a></li><li><a href="StageError.html">StageError</a></li></ul><h3>Global</h3><ul><li><a href="global.html#DEFAULT_DROP_PARAMS">DEFAULT_DROP_PARAMS</a></li><li><a href="global.html#DEFAULT_UNWRAP_RULES">DEFAULT_UNWRAP_RULES</a></li><li><a href="global.html#MAX_KEY_BYTES">MAX_KEY_BYTES</a></li><li><a href="global.html#WDataPipeline">WDataPipeline</a></li><li><a href="global.html#__bagMap">__bagMap</a></li><li><a href="global.html#__execute">__execute</a></li><li><a href="global.html#__kind">__kind</a></li><li><a href="global.html#admit">admit</a></li><li><a href="global.html#attemptFetch">attemptFetch</a></li><li><a href="global.html#byRole">byRole</a></li><li><a href="global.html#close">close</a></li><li><a href="global.html#createContext">createContext</a></li><li><a href="global.html#createFetcherRegistry">createFetcherRegistry</a></li><li><a href="global.html#createIdentity">createIdentity</a></li><li><a href="global.html#createSeenStore">createSeenStore</a></li><li><a href="global.html#defaultIdentityOf">defaultIdentityOf</a></li><li><a href="global.html#defineFetcher">defineFetcher</a></li><li><a href="global.html#definePipeline">definePipeline</a></li><li><a href="global.html#defineStage">defineStage</a></li><li><a href="global.html#describe">describe</a></li><li><a href="global.html#elapsed">elapsed</a></li><li><a href="global.html#expired">expired</a></li><li><a href="global.html#get">get</a></li><li><a href="global.html#has">has</a></li><li><a href="global.html#idOf">idOf</a></li><li><a href="global.html#identity">identity</a></li><li><a href="global.html#insertNew">insertNew</a></li><li><a href="global.html#isHttpUrl">isHttpUrl</a></li><li><a href="global.html#isRunnable">isRunnable</a></li><li><a href="global.html#isTimeoutError">isTimeoutError</a></li><li><a href="global.html#label">label</a></li><li><a href="global.html#makeDefaultIdentityOf">makeDefaultIdentityOf</a></li><li><a href="global.html#mapLimit">mapLimit</a></li><li><a href="global.html#mark">mark</a></li><li><a href="global.html#normalizeContent">normalizeContent</a></li><li><a href="global.html#normalizeItem">normalizeItem</a></li><li><a href="global.html#normalizeItems">normalizeItems</a></li><li><a href="global.html#normalizeLogger">normalizeLogger</a></li><li><a href="global.html#normalizeUrl">normalizeUrl</a></li><li><a href="global.html#nullLogger">nullLogger</a></li><li><a href="global.html#oneline">oneline</a></li><li><a href="global.html#openCollection">openCollection</a></li><li><a href="global.html#patch">patch</a></li><li><a href="global.html#peek">peek</a></li><li><a href="global.html#prev">prev</a></li><li><a href="global.html#remainingMs">remainingMs</a></li><li><a href="global.html#replace">replace</a></li><li><a href="global.html#resolveIdentity">resolveIdentity</a></li><li><a href="global.html#resolveKeyOf">resolveKeyOf</a></li><li><a href="global.html#run">run</a></li><li><a href="global.html#runDetailFetch">runDetailFetch</a></li><li><a href="global.html#runListFetch">runListFetch</a></li><li><a href="global.html#runPipeline">runPipeline</a></li><li><a href="global.html#select">select</a></li><li><a href="global.html#sha1">sha1</a></li><li><a href="global.html#snapshot">snapshot</a></li><li><a href="global.html#stage">stage</a></li><li><a href="global.html#str">str</a></li><li><a href="global.html#unwrapRedirectUrl">unwrapRedirectUrl</a></li><li><a href="global.html#withCollections">withCollections</a></li></ul>
+    
+</nav>
+
+<div id="main">
+    
+    <h1 class="page-title">fetch/runListFetch.mjs</h1>
+    
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import { mapLimit } from '../util/mapLimit.mjs'
+import { isTimeoutError, ContractError } from '../core/errors.mjs'
+import { normalizeLogger } from '../util/logger.mjs'
+import { oneline } from '../util/oneline.mjs'
+import { normalizeItems } from './itemContract.mjs'
+import { attemptFetch } from './attemptFetch.mjs'
+
+/**
+ * 輪抓多個來源：解析抓取器 → 執行 → 檢查格式 → 已抓過的擋掉。
+ *
+ * 【這一段就是「抓取器 + 檢測器」的接點】抓回來的項目在此立刻過一次去重檢測，
+ * 只有沒抓過的才放行給下游（補抓內文、AI 處理）。放行門檻放在這裡而不是更下游，
+ * 是因為越下游的每一步都越貴（補抓內文要數十秒、AI 呼叫要數分鐘且燒額度）。
+ *
+ * 【單一來源失敗不影響其他來源】每個來源各自 try／各自計時，失敗只記錄；
+ * 同時每個來源的成敗與統計都回傳給呼叫端，讓「連續失敗即停用」這類品質配重
+ * 由呼叫端自行決定——那是業務政策，不同專案不同，不該由套件內建。
+ *
+ * @param {object} opt
+ * @param {Array} opt.sources          來源記錄（至少含 kind 或 fetcher；id／name／lang 選填）
+ * @param {object} opt.registry        createFetcherRegistry 之產出
+ * @param {object} [opt.seen]          createSeenStore 之產出；給了才會做「已抓過就不放行」
+ * @param {object} [opt.ctx]           傳給抓取函數的第二參數（管道脈絡）
+ * @param {object} [opt.log]
+ * @param {number} [opt.concurrency=1] 併發來源數（對同一站台請保守）
+ * @param {number} [opt.timeoutMs]     全域單次抓取上限（抓取器自身宣告者優先）
+ * @param {object} [opt.contract]      契約參數：maxItems／maxTextChars／unwrap／unwrapRules／normalizeUrlOpt
+ * @param {object} [opt.identity]      身分定義；未給則沿用 seen.identity。
+ *                                     契約層與檢測層共用同一份，兩邊才會算出同一組主鍵。
+ * @param {Function} [opt.filter]  ((items, meta)=>Array|Promise)
+ *        業務過濾接縫：格式檢查之後、去重占位（admit）之前。收整批已正規化項目與
+ *        meta { source, fetcher, ctx }，回傳「要保留的陣列」。
+ *        【為何必須在 admit 之前】admit 即占位寫入；被政策（黑名單、日期窗）拒絕的
+ *        項目一旦占了位，之後政策放寬時它們永遠進不來（已被判 dup）。
+ *        toRecord 是「轉換」不是「否決」，故另設此接縫，不把業務政策塞進抓取器。
+ * @param {Function} [opt.toRecord]  ((item, meta)=>object) 入庫前的記錄轉換（補 status／collectedAt 等業務欄位）；
+ *                                     meta 帶 { id, source, fetcher }
+ * @param {boolean} [opt.strictUnhandled=true] 有來源無抓取器可處理時，於開工前整批拋
+ *        ContractError（false 則將該來源記為失敗並續跑其他來源）
+ * @param {Function} [opt.onSource]  ((r)=>void)   每個來源結束時的回調（供呼叫端更新來源統計）
+ * @returns {Promise&lt;{results:Array, stats:object, fresh:Array}>} results 為逐來源結果；
+ *     stats 為總計（sources／ok／failed／items／filtered／fresh／dup／invalid）；
+ *     fresh 為本輪實際入庫的新記錄（已含主鍵 id），可直接接下游
+ */
+export async function runListFetch(opt = {}) {
+    const log = normalizeLogger(opt.log)
+    const { registry, seen, ctx } = opt
+    const sources = Array.isArray(opt.sources) ? opt.sources : []
+    const globalLimit = Math.max(1, Number(opt.concurrency) || 1)
+    // 身分定義優先取自 seen——契約層的批內去重與檢測層的入庫判定必須同一份，
+    // 各自算會讓兩邊擋掉的不是同一批（見 dedup/identity.mjs）
+    const identity = opt.identity || seen?.identity || null
+
+    // ── 抓取器解析前置（不進 mapLimit）──
+    // 解析失敗屬設定錯誤（來源加了新 kind 卻忘了註冊、指名了不存在的抓取器），
+    // 不會自行恢復。若留在 worker 內拋，會被 mapLimit 攤平成單來源失敗、runner 照樣
+    // 正常返回——strictUnhandled 名不符實（先前版本即是如此），且日誌只顯示
+    // 「這輪沒新資料」，最難歸因。故開工前一次解析完：設定錯誤整批 fail loud，
+    // 網路／429／逾時等 operational 失敗才進逐來源隔離。
+    // 註：registry.resolve 對「指名但未註冊」自行拋 ContractError，在此處同樣直接外拋。
+    const resolved = sources.map((src) => ({ src, fetcher: registry.resolve('list', src, ctx) }))
+    const unhandled = resolved.filter((x) => !x.fetcher)
+    if (unhandled.length &amp;&amp; opt.strictUnhandled !== false) {
+        const names = unhandled.map((x) => x.src?.name || x.src?.url || x.src?.id || '未命名來源')
+        throw new ContractError(`有 ${unhandled.length} 個來源無可用抓取器：${names.join('、')}（已註冊：${registry.label()}）`)
+    }
+
+    const results = await mapLimit(resolved, async ({ src, fetcher }) => {
+        const label = src?.name || src?.url || src?.id || '未命名來源'
+
+        // strictUnhandled:false 才會走到這裡：記為失敗但不阻斷其他來源
+        if (!fetcher) {
+            const msg = `來源[${label}] 無可用抓取器（kind=${src?.kind || '未指定'}）`
+            return { source: src, fetcherId: '', ok: false, reason: 'no-fetcher', message: msg, items: [], fresh: [], dupCount: 0, invalid: [], filtered: 0 }
+        }
+
+        const timeoutMs = fetcher.timeoutMs || opt.timeoutMs || 0
+        let raw
+        try {
+            raw = await attemptFetch(fetcher, src, ctx, timeoutMs)
+        }
+        catch (e) {
+            return {
+                source: src,
+                fetcherId: fetcher.id,
+                ok: false,
+                reason: isTimeoutError(e) ? 'timeout' : 'fetch-error',
+                message: oneline(e?.message, 300),
+                error: e,
+                items: [],
+                fresh: [],
+                dupCount: 0,
+                invalid: [],
+                filtered: 0,
+            }
+        }
+
+        // 格式檢查：回傳非陣列屬抓取器實作錯誤，此處讓它拋出（不當成「沒抓到」）
+        const { items, invalid, dupInBatch } = normalizeItems(raw, {
+            ...(opt.contract || {}),
+            ...(fetcher.contract || {}),
+            identity,
+            source: src,
+            fetcherId: fetcher.id,
+        })
+        if (invalid.length) {
+            log.warn(`來源[${label}] 有 ${invalid.length} 項不符格式而略過：${oneline(invalid.map((x) => x.reason).join('；'), 200)}`)
+        }
+
+        // 業務過濾接縫（見參數說明；必須在 admit 之前）
+        let kept = items
+        let filtered = 0
+        if (typeof opt.filter === 'function') {
+            kept = await opt.filter(items, { source: src, fetcher, ctx })
+            if (!Array.isArray(kept)) {
+                // 回傳非陣列屬呼叫端實作錯誤，不可當成「全數過濾」靜默吞掉
+                throw new TypeError(`filter 必須回傳陣列（要保留的項目），實得 ${kept === null ? 'null' : typeof kept}`)
+            }
+            filtered = items.length - kept.length
+            if (filtered > 0) log.info(`來源[${label}] 業務過濾剔除 ${filtered} 項`)
+        }
+
+        // 去重檢測：沒抓過才放行
+        let fresh = kept
+        let dupCount = 0
+        if (seen) {
+            const r = await seen.admit(kept, { toRecord: opt.toRecord, meta: { source: src, fetcher } })
+            fresh = r.fresh
+            dupCount = r.dup
+        }
+
+        return {
+            source: src,
+            fetcherId: fetcher.id,
+            ok: true,
+            reason: '',
+            message: '',
+            items,
+            filtered,
+            fresh,
+            dupCount,
+            dupInBatch,
+            invalid,
+        }
+    }, {
+        limit: globalLimit,
+        // 【async 且被 mapLimit await】onSource 的實務用途是把來源統計寫回資料庫
+        //（lastFetchAt／okCount／failCount／cursor），全是非同步 I/O。
+        // 不等它完成就回傳，呼叫端接著關閉集合時會與這些寫入競態。
+        onSettled: async (r, entry) => {
+            const src = entry?.src
+            const label = src?.name || src?.url || src?.id || '未命名來源'
+            if (!r.ok) {
+                log.warn(`來源[${label}] 抓取失敗：${oneline(r.error?.message, 200)}`)
+            }
+            else {
+                const v = r.value
+                if (v.ok) log.info(`來源[${label}] 取得 ${v.items.length} 項，新增 ${v.fresh.length} 篇${v.dupCount ? `（已抓過 ${v.dupCount}）` : ''}`)
+                else log.warn(`來源[${label}] 抓取失敗（${v.reason}）：${oneline(v.message, 200)}`)
+            }
+            if (typeof opt.onSource === 'function') {
+                // 拋錯不在此吞掉——由 mapLimit 記入 settledError，於下方統一以 error 呈報。
+                // 這是持久化失敗，靜默等於「統計悄悄沒更新」，事後完全查不出來
+                await opt.onSource(r.ok
+                    ? { ...r.value, ms: r.ms }
+                    : { source: src, ok: false, reason: 'throw', message: oneline(r.error?.message, 300), error: r.error, items: [], fresh: [], dupCount: 0, invalid: [], filtered: 0, ms: r.ms })
+            }
+        },
+    })
+
+    // 回調失敗須明確呈報：它代表來源統計沒寫進去，下一輪的排序與淘汰判定都會依據舊值
+    for (const r of results) {
+        if (!r.settledError) continue
+        const src = r.item?.src
+        const label = src?.name || src?.url || src?.id || '未命名來源'
+        log.error(`來源[${label}] 的 onSource 回調失敗（統計未寫回）：${oneline(r.settledError?.message, 200)}`)
+    }
+
+    // mapLimit 已吸收例外；此處把兩種形狀（回傳值／拋出）攤平成同一種結果
+    const flat = results.map((r, i) => (r.ok
+        ? { ...r.value, ms: r.ms }
+        : { source: resolved[i].src, fetcherId: '', ok: false, reason: 'throw', message: oneline(r.error?.message, 300), error: r.error, items: [], fresh: [], dupCount: 0, invalid: [], filtered: 0, ms: r.ms }))
+
+    const stats = {
+        sources: flat.length,
+        ok: flat.filter((x) => x.ok).length,
+        failed: flat.filter((x) => !x.ok).length,
+        items: flat.reduce((a, x) => a + x.items.length, 0),
+        filtered: flat.reduce((a, x) => a + (x.filtered || 0), 0),
+        fresh: flat.reduce((a, x) => a + x.fresh.length, 0),
+        dup: flat.reduce((a, x) => a + (x.dupCount || 0), 0),
+        invalid: flat.reduce((a, x) => a + x.invalid.length, 0),
+    }
+    return { results: flat, stats, fresh: flat.flatMap((x) => x.fresh) }
+}
+
+export default runListFetch
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+    
+    
+</div>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.5</a> on Tue Aug 18 2026 11:34:26 GMT+0800 (台北標準時間) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+</footer>
+
+<script>prettyPrint();</script>
+<script src="scripts/polyfill.js"></script>
+<script src="scripts/linenumber.js"></script>
+
+
+
+</body>
+</html>
