@@ -1,0 +1,332 @@
+import pmTimeout from 'wsemi/src/pmTimeout.mjs'
+import { defineStage } from './defineStage.mjs'
+import { ContractError, StageError, PipelineError, isTimeoutError } from './errors.mjs'
+import { createContext } from './context.mjs'
+import { normalizeLogger } from '../util/logger.mjs'
+import { oneline } from '../util/oneline.mjs'
+
+/** 是否為 defineStage／definePipeline 產出的可執行單元 */
+function isRunnable(x) {
+    return !!x && (x.__kind === 'stage' || x.__kind === 'pipeline') && typeof x.run === 'function'
+}
+
+/**
+ * 定義一條管道：外部給階段清單，套件給秩序。
+ *
+ * 套件不預設任何階段順序，也不解讀階段內容；它只負責四件每個專案都得重寫、
+ * 且每次都會寫得不一致的事：①逐段計時與日誌格式統一；②失敗隔離
+ * （onError 決定哪段掛了要中止、哪段掛了要繼續）；③停止與收尾
+ * （提前結束時，always 收尾段仍須執行）；④執行鎖與時間預算。
+ *
+ * 【管道即階段（可巢狀）】回傳值本身也符合階段契約，可直接放進另一條管道的 stages；
+ * 子管道可各自有獨立 logger 與執行鎖，配合 onError:'continue' 即可表達
+ * 「前段整段失敗不得阻斷後段」而不需任何特例程式碼。
+ *
+ * 【一個管道、兩個入口，語意刻意不同】
+ *   run(ctx) 作為父管道之階段 → 失敗時拋 PipelineError（完整 report 掛在 e.report）；
+ *   runPipeline(p, opt) 頂層執行 → 一律回傳 report，呼叫端檢查 report.ok。
+ * 若兩者都不拋，父層會把失敗的子管道記成成功、子管道的 onError 變成死碼；
+ * 若兩者都拋，頂層呼叫者得 try/catch 再從 e.report 撈同一份明細，忘了撈就全丟。
+ *
+ * 【鎖與日誌皆由外部注入】呼叫端通常已有既定的鎖檔與日誌格式（且常有巡檢工具
+ * 依固定格式解析），套件自帶實作只會產生第二套不相容的檔案。
+ *
+ * @param {object} spec
+ * @param {string} spec.name                       管道名（日誌識別）
+ * @param {Array} spec.stages                      階段清單；元素可為 defineStage／definePipeline 之產出，
+ *                                                 或可直接被 defineStage 接受的 spec 物件
+ * @param {object} [spec.log]                      logger（{info,warn,error}）；未給則由父脈絡繼承
+ * @param {object} [spec.deps]                     本管道專屬相依（會覆蓋父脈絡的同名鍵）
+ * @param {number} [spec.deadlineMs]               本管道的軟性時間預算
+ * @param {{acquire:Function}|Function} [spec.lock] 執行鎖；acquire() 回 { ok, message, release }
+ * @param {Function} [spec.onStart]  ((ctx)=>void)             起始日誌鉤子（不給則印預設行）
+ * @param {Function} [spec.onEnd]  ((report, ctx)=>void)       結束日誌鉤子（不給則印預設行）
+ * @param {Function} [spec.onStageEnd]  ((info)=>void)         逐段日誌鉤子（不給則印預設行）
+ *
+ * 以下欄位使本管道可作為「父管道的一個階段」使用，語意同 defineStage：
+ * @param {'abort'|'continue'} [spec.onError]
+ * @param {boolean} [spec.always]
+ * @param {Function} [spec.when]  ((ctx)=>boolean)
+ * @param {number} [spec.timeoutMs]
+ * @returns {object} 管道物件：{ name, stages, run, onError, always, when, timeoutMs, summary }；
+ *     run(ctx) 作為父管道之階段執行（失敗拋 PipelineError），頂層執行請用 runPipeline
+ */
+export function definePipeline(spec) {
+    const name = String(spec?.name || '').trim()
+    if (!name) throw new ContractError('管道缺少 name')
+    if (!Array.isArray(spec.stages) || spec.stages.length === 0) {
+        throw new ContractError(`管道[${name}] 的 stages 必須是非空陣列`)
+    }
+
+    // 允許直接寫 spec 物件（省去每段都包一層 defineStage），但一律經契約檢查
+    const stages = spec.stages.map((s) => (isRunnable(s) ? s : defineStage(s)))
+
+    // 名稱重複會讓日誌與統計對不起來（兩段同名時無法判斷是哪一段失敗），故定義期即擋
+    const seen = new Set()
+    for (const s of stages) {
+        if (seen.has(s.name)) throw new ContractError(`管道[${name}] 有重複的階段名：${s.name}`)
+        seen.add(s.name)
+    }
+
+    /** 內部執行體：一律回傳 report，不拋出。對外的兩個入口（run／runPipeline）語意不同，見下方。 */
+    const execute = async (parentCtx) => {
+    // 子脈絡：資料袋與父管道共用，log／deps 可各自覆寫。
+    //
+    // 【時間預算取兩者較嚴者】子管道未宣告時必須**繼承父管道的剩餘時間**，
+    //   而非變成無限——否則巢狀一層，最外層的排程視窗（如 55 分鐘）就對內層失效，
+    //   內層階段問 remainingMs() 會得到 Infinity 而不做任何收斂，最後被排程硬砍、
+    //   當輪成果全數丟失。子管道自訂較短預算則以自訂者為準（可以更嚴，不能更寬）。
+        const log = normalizeLogger(spec.log || parentCtx?.log)
+        const own = Number.isFinite(spec.deadlineMs) && spec.deadlineMs > 0 ? spec.deadlineMs : Infinity
+        const inherited = parentCtx ? parentCtx.remainingMs() : Infinity
+        const budget = Math.min(own, inherited)
+        const ctx = createContext({
+            bagMap: parentCtx?.__bagMap,
+            deps: { ...(parentCtx?.deps || {}), ...(spec.deps || {}) },
+            log,
+            deadlineMs: Number.isFinite(budget) ? budget : undefined,
+            signal: parentCtx?.signal,
+        })
+
+        const t0 = Date.now()
+        const report = {
+            name,
+            ok: true,
+            stopped: false,
+            stopReason: '',
+            aborted: false,
+            /** 首個致命錯誤（根因）。後續再發生的致命錯誤一律進 cleanupErrors，不覆蓋此欄 */
+            error: null,
+            /** 根因發生後才出現的錯誤（多為 always 收尾段自己也失敗）。保留以免根因被蓋掉 */
+            cleanupErrors: [],
+            lockSkipped: false,
+            stages: [],
+            ms: 0,
+        }
+
+        /**
+     * 生命週期鉤子一律 await 且不得讓例外外流。
+     *
+     * 【為何必須 await】鉤子在實務上會做非同步的持久化（寫日誌檔、更新來源統計、
+     *   發通知）。不 await 就會出現「管道已回報結束、集合已關閉，鉤子才在寫」的競態，
+     *   寫入丟失或對已關閉的資源寫入。
+     * 【為何吞掉鉤子自身的例外】鉤子是附加通知，不承擔本次執行的成敗；
+     *   它拋錯若外流，會蓋掉真正的失敗原因（放在 finally 內時更會蓋掉整個 report）。
+     *   但不可靜默——一律降級成 warn 記錄。
+     */
+        const runHook = async (hookName, fn, ...args) => {
+            if (typeof fn !== 'function') return false
+            try {
+                await fn(...args)
+            }
+            catch (e) {
+                log.warn(`管道[${name}] 生命週期鉤子[${hookName}] 拋錯（已忽略，不影響本次執行）：${oneline(e?.message, 200)}`)
+            }
+            return true
+        }
+
+        /** 記錄致命錯誤：首個為根因，其後一律追加到 cleanupErrors */
+        const recordFatal = (err) => {
+            if (report.error) report.cleanupErrors.push(err)
+            else report.error = err
+            report.ok = false
+        }
+
+        // ── 執行鎖 ──
+        // 未取得鎖時「不執行但正常結束」：排程重疊是常態（上一輪還在跑），
+        // 屬預期情形而非失敗；報告仍照常產出，讓巡檢能辨識「本輪略過」與「本輪被砍」之別。
+        let lock = null
+        if (spec.lock) {
+            try {
+                const acquire = typeof spec.lock === 'function' ? spec.lock : spec.lock.acquire.bind(spec.lock)
+                lock = await acquire()
+            }
+            catch (e) {
+                // 取鎖本身失敗（權限、磁碟）與「鎖被佔用」不同：前者是故障，不可當成正常略過
+                report.aborted = true
+                recordFatal(new StageError(`${name}:acquireLock`, e))
+                report.ms = Date.now() - t0
+                log.error(`管道[${name}] 取得執行鎖失敗：${oneline(e?.message, 200)}`)
+                await runHook('onEnd', spec.onEnd, report, ctx)
+                return report
+            }
+            if (!lock?.ok) {
+                report.lockSkipped = true
+                report.stopped = true
+                report.stopReason = lock?.message || '未取得執行鎖'
+                report.ms = Date.now() - t0
+                log.warn(`管道[${name}] 略過本輪：${report.stopReason}`)
+                await runHook('onEnd', spec.onEnd, report, ctx)
+                return report
+            }
+        }
+
+        try {
+            // 【onStart 必須在 try 內】它若拋錯而落在 try 外，finally 不會執行、執行鎖不會釋放，
+            //   後續每一輪都會「略過本輪」直到有人手動清鎖——一個日誌鉤子的錯拖垮整條排程。
+            if (!await runHook('onStart', spec.onStart, ctx)) {
+                log.info(`管道[${name}] 啟動（${stages.length} 段）`)
+            }
+            let step = 0
+            for (const st of stages) {
+                step++
+                const rec = { name: st.name, step, status: '', reason: '', ms: 0, result: undefined, error: null }
+
+                // 已停止／已中止 → 只有 always 段還跑（收尾巡檢、失敗通知、資源關閉）
+                if ((report.stopped || report.aborted) && !st.always) {
+                    rec.status = 'skip'
+                    rec.reason = report.aborted ? '前段中止' : `已停止：${report.stopReason}`
+                    report.stages.push(rec)
+                    continue
+                }
+                if (st.when && !st.when(ctx)) {
+                    rec.status = 'skip'
+                    rec.reason = '條件未成立'
+                    report.stages.push(rec)
+                    continue
+                }
+                // 軟性截止：時間已用盡就不再開工（always 段不受限——它們正是為了收尾而存在）
+                if (!st.always && ctx.expired()) {
+                    rec.status = 'skip'
+                    rec.reason = ctx.signal?.aborted ? '已中止' : '逾時間預算'
+                    report.stages.push(rec)
+                    log.warn(`管道[${name}] 階段[${st.name}] 略過：${rec.reason}`)
+                    continue
+                }
+
+                ctx.stage = st.name
+                const s0 = Date.now()
+                try {
+                    // timeoutMs 為 0 代表「未設上限」（見 defineStage）；而 pmTimeout 的 0 是
+                    // 「下一輪事件迴圈即逾時」——語意正好相反，故必須先擋，不可直接把 0 交進去
+                    const pm = Promise.resolve(st.run(ctx))
+                    const result = await (st.timeoutMs > 0
+                        ? pmTimeout(pm, st.timeoutMs, { label: `管道[${name}] 階段[${st.name}]` })
+                        : pm)
+                    rec.ms = Date.now() - s0
+                    rec.status = 'ok'
+                    rec.result = result
+                    ctx.prev = result
+
+                    // 階段可要求停止後續（如「本輪無新增資料，直接結束」）——
+                    // 這是正常結束而非失敗，故不設 error、ok 維持 true
+                    if (result && result.stop === true) {
+                        report.stopped = true
+                        report.stopReason = result.reason || `${st.name} 要求停止`
+                    }
+
+                    if (!await runHook('onStageEnd', spec.onStageEnd, { ...rec, pipeline: name, ctx })) {
+                        const sm = st.summary ? st.summary(result, ctx) : (result && result.summary)
+                        log.info(`步驟${step} ${st.name} 完成${sm ? `：${sm}` : ''}（${(rec.ms / 1000).toFixed(1)}s）`)
+                    }
+                    if (report.stopped) log.info(`管道[${name}] 提前結束：${report.stopReason}`)
+                }
+                catch (e) {
+                    rec.ms = Date.now() - s0
+                    rec.status = 'fail'
+                    rec.error = e
+                    rec.reason = isTimeoutError(e) ? 'timeout' : String(e?.code || 'error').toLowerCase()
+                    // 子管道失敗時仍保留其完整 report：父層報告若只剩一個錯誤字串，
+                    // 就看不出子管道裡是哪幾段成功、哪一段倒的，巡檢與事後歸因都會斷線
+                    if (e instanceof PipelineError) rec.result = e.report
+                    const wrapped = e instanceof StageError ? e : new StageError(st.name, e)
+                    // 子管道已在自己的日誌裡完整記過失敗細節，父層再印一次堆疊只是重複洗版
+                    const detail = e instanceof PipelineError ? oneline(e.message, 300) : oneline(e?.stack || e?.message, 500)
+
+                    if (st.onError === 'continue') {
+                        log.warn(`管道[${name}] 階段[${st.name}] 失敗（${rec.reason}），續跑後段：${oneline(e?.message, 200)}`)
+                    }
+                    else {
+                        // 【根因不可被覆蓋】收尾段（always）在前段已倒之後才失敗時，
+                        //   若直接覆寫 report.error，讀報告的人只會看到「巡檢也失敗了」，
+                        //   真正把管道打斷的那個原因就此消失。故第二個以後一律進 cleanupErrors。
+                        const isCleanup = !!report.error
+                        report.aborted = true
+                        recordFatal(wrapped)
+                        log.error(`管道[${name}] 階段[${st.name}] 失敗（${rec.reason}），${isCleanup ? '（根因已記錄於前，本項列為收尾錯誤）' : '中止'}：${detail}`)
+                    }
+                    await runHook('onStageEnd', spec.onStageEnd, { ...rec, pipeline: name, ctx })
+                }
+                report.stages.push(rec)
+            }
+        }
+        finally {
+            // release 可能是非同步（刪鎖檔、還連線池）。不 await 就會出現
+            // 「已回報結束、下一輪已啟動，上一輪的鎖才剛要釋放」的競態
+            try {
+                await lock?.release?.()
+            }
+            catch (e) {
+                log.warn(`管道[${name}] 釋放執行鎖失敗：${oneline(e?.message, 200)}`)
+            }
+            report.ms = Date.now() - t0
+            if (!await runHook('onEnd', spec.onEnd, report, ctx)) {
+                log.info(`管道[${name}] 結束，耗時 ${(report.ms / 1000).toFixed(1)}s`)
+            }
+        }
+
+        return report
+    }
+
+    return {
+        __kind: 'pipeline',
+        name,
+        stages,
+        // 作為父管道之階段時的行為（預設 abort，與 defineStage 一致）
+        onError: spec.onError === 'continue' ? 'continue' : 'abort',
+        always: !!spec.always,
+        when: spec.when || null,
+        timeoutMs: Number.isFinite(spec.timeoutMs) ? spec.timeoutMs : 0,
+        summary: spec.summary || ((r) => `${r.stages.filter((x) => x.status === 'ok').length}/${r.stages.length} 段完成`),
+
+        /**
+     * 階段介面：**失敗時拋出 PipelineError**，讓父管道的 catch 分支得以套用本管道的 onError。
+     * 這是巢狀語意成立的關鍵——只回傳 ok:false 的 report 而不拋，父層會判成成功。
+     *
+     * 【什麼算失敗】只有「某段 onError:'abort' 且該段失敗」才算（report.ok === false）。
+     *   以下皆非失敗，不拋：
+     *     - 未取得執行鎖而略過（排程重疊是常態，非錯誤）
+     *     - 某段回 { stop:true } 提前結束（正常的提前收工）
+     *     - 某段失敗但宣告 onError:'continue'（已明示容忍）
+     *
+     * 【stop 不跨管道傳播】子管道的提前結束只約束它自己，父管道續跑下一段。
+     *   例：fetch 段判定「本輪無新資料」而收工，organize 段仍應消化既有待處理項目。
+     *   要讓父層一起停，請在父層自己的階段裡回 { stop:true }。
+     */
+        run: async (parentCtx) => {
+            const report = await execute(parentCtx)
+            if (!report.ok) throw new PipelineError(name, report)
+            return report
+        },
+
+        /** 內部用：取得 report 而不拋（供 runPipeline 這類頂層入口使用） */
+        __execute: execute,
+    }
+}
+
+/**
+ * 頂層入口：執行一條管道並**一律回傳 report**（不因管道失敗而拋出）。
+ *
+ * 【為何頂層不拋、作為階段時才拋】兩者的呼叫者要的東西不同：
+ *   - 父管道要的是「該不該續跑」→ 需要拋出才能走 catch 分支評估 onError；
+ *   - 頂層呼叫者（排程入口）要的是「這輪發生了什麼」→ report 裡有逐段狀態與耗時，
+ *     用來寫日誌與巡檢。若頂層也拋，呼叫者得寫 try/catch 再從 e.report 撈同一份東西，
+ *     而且忘了撈就整份明細遺失。
+ *   故頂層檢查 `report.ok` 即可，不需要 try/catch。
+ *
+ * 註：定義期的設定錯誤（ContractError）仍會拋出——那不是執行失敗，是程式寫錯，不該被吞成報告。
+ *
+ * @param {object} pipeline definePipeline 之產出
+ * @param {object} [opt] 同 createContext 之選項（deps／log／deadlineMs／signal／bag）
+ * @returns {Promise<object>} report：{ ok, stopped, aborted, error, lockSkipped, stages[], ms }
+ */
+export async function runPipeline(pipeline, opt = {}) {
+    if (!isRunnable(pipeline)) throw new ContractError('runPipeline 需要 definePipeline／defineStage 的產出')
+    const root = createContext({ ...opt, log: normalizeLogger(opt.log) })
+    // 走 __execute 而非 run：頂層要 report 不要例外（見上方說明）。
+    // 單一階段（defineStage 之產出）沒有 __execute，仍走 run。
+    if (typeof pipeline.__execute === 'function') return pipeline.__execute(root)
+    return pipeline.run(root)
+}
+
+export default definePipeline

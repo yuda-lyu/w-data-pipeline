@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    
+    <meta charset="utf-8">
+    <title>dedup/openCollection.mjs - Documentation</title>
+    
+    
+    <script src="scripts/prettify/prettify.js"></script>
+    <script src="scripts/prettify/lang-css.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc.css">
+    <script src="scripts/nav.js" defer></script>
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+
+<input type="checkbox" id="nav-trigger" class="nav-trigger" />
+<label for="nav-trigger" class="navicon-button x">
+  <div class="navicon"></div>
+</label>
+
+<label for="nav-trigger" class="overlay"></label>
+
+<nav >
+    
+    
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ContractError.html">ContractError</a></li><li><a href="PipelineError.html">PipelineError</a></li><li><a href="StageError.html">StageError</a></li></ul><h3>Global</h3><ul><li><a href="global.html#DEFAULT_DROP_PARAMS">DEFAULT_DROP_PARAMS</a></li><li><a href="global.html#DEFAULT_UNWRAP_RULES">DEFAULT_UNWRAP_RULES</a></li><li><a href="global.html#MAX_KEY_BYTES">MAX_KEY_BYTES</a></li><li><a href="global.html#WDataPipeline">WDataPipeline</a></li><li><a href="global.html#__bagMap">__bagMap</a></li><li><a href="global.html#__execute">__execute</a></li><li><a href="global.html#__kind">__kind</a></li><li><a href="global.html#admit">admit</a></li><li><a href="global.html#attemptFetch">attemptFetch</a></li><li><a href="global.html#byRole">byRole</a></li><li><a href="global.html#close">close</a></li><li><a href="global.html#createContext">createContext</a></li><li><a href="global.html#createFetcherRegistry">createFetcherRegistry</a></li><li><a href="global.html#createIdentity">createIdentity</a></li><li><a href="global.html#createSeenStore">createSeenStore</a></li><li><a href="global.html#defaultIdentityOf">defaultIdentityOf</a></li><li><a href="global.html#defineFetcher">defineFetcher</a></li><li><a href="global.html#definePipeline">definePipeline</a></li><li><a href="global.html#defineStage">defineStage</a></li><li><a href="global.html#describe">describe</a></li><li><a href="global.html#elapsed">elapsed</a></li><li><a href="global.html#expired">expired</a></li><li><a href="global.html#get">get</a></li><li><a href="global.html#has">has</a></li><li><a href="global.html#idOf">idOf</a></li><li><a href="global.html#identity">identity</a></li><li><a href="global.html#insertNew">insertNew</a></li><li><a href="global.html#isHttpUrl">isHttpUrl</a></li><li><a href="global.html#isRunnable">isRunnable</a></li><li><a href="global.html#isTimeoutError">isTimeoutError</a></li><li><a href="global.html#label">label</a></li><li><a href="global.html#makeDefaultIdentityOf">makeDefaultIdentityOf</a></li><li><a href="global.html#mapLimit">mapLimit</a></li><li><a href="global.html#mark">mark</a></li><li><a href="global.html#normalizeContent">normalizeContent</a></li><li><a href="global.html#normalizeItem">normalizeItem</a></li><li><a href="global.html#normalizeItems">normalizeItems</a></li><li><a href="global.html#normalizeLogger">normalizeLogger</a></li><li><a href="global.html#normalizeUrl">normalizeUrl</a></li><li><a href="global.html#nullLogger">nullLogger</a></li><li><a href="global.html#oneline">oneline</a></li><li><a href="global.html#openCollection">openCollection</a></li><li><a href="global.html#patch">patch</a></li><li><a href="global.html#peek">peek</a></li><li><a href="global.html#prev">prev</a></li><li><a href="global.html#remainingMs">remainingMs</a></li><li><a href="global.html#replace">replace</a></li><li><a href="global.html#resolveIdentity">resolveIdentity</a></li><li><a href="global.html#resolveKeyOf">resolveKeyOf</a></li><li><a href="global.html#run">run</a></li><li><a href="global.html#runDetailFetch">runDetailFetch</a></li><li><a href="global.html#runListFetch">runListFetch</a></li><li><a href="global.html#runPipeline">runPipeline</a></li><li><a href="global.html#select">select</a></li><li><a href="global.html#sha1">sha1</a></li><li><a href="global.html#snapshot">snapshot</a></li><li><a href="global.html#stage">stage</a></li><li><a href="global.html#str">str</a></li><li><a href="global.html#unwrapRedirectUrl">unwrapRedirectUrl</a></li><li><a href="global.html#withCollections">withCollections</a></li></ul>
+    
+</nav>
+
+<div id="main">
+    
+    <h1 class="page-title">dedup/openCollection.mjs</h1>
+    
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import { ContractError } from '../core/errors.mjs'
+
+/** LMDB key 的安全上限（lmdb-js 預設 maxKeySize 1978 bytes，取保守值） */
+const MAX_KEY_BYTES = 1000
+
+function assertId(id, where) {
+    const s = String(id ?? '').trim()
+    if (s === '') throw new ContractError(`${where}：記錄缺少非空字串 id（會被指派隨機 id 而永遠無法去重）`)
+    if (Buffer.byteLength(s, 'utf8') > MAX_KEY_BYTES) throw new ContractError(`${where}：id 超過 ${MAX_KEY_BYTES} bytes，請改用雜湊`)
+    return s
+}
+
+/**
+ * 開啟一個集合（去重檢測器的儲存底座）。用完務必 close()。
+ *
+ * 【WOrm 由外部注入（依賴注入）】本檔不 import 任何 ORM——建構函數由呼叫端以
+ * opt.WOrm 傳入，套件本體因此零儲存層相依，將來可換成相容實作。注入之 WOrm 須為
+ * w-orm-lmdb 1.0.20+ 之介面：WOrm({url, db, cl, autoGenPk}) 回傳
+ * { select, selectByPk, insert, save, del, close }，且須具備：
+ * ①selectByPk 主鍵直讀（O(1)，不經全表掃描）；
+ * ②insert 之原子條件寫入（以 lmdb-js 之 ifNoExists 於同一寫交易內完成
+ * 「檢查未存在」與「寫入」，無競態空窗——併發插入同一 id 僅一次成功）；
+ * ③insert 之 returnList:true 逐筆結果；④autoGenPk:false 拒收無 id 記錄；
+ * ⑤close() 後各函數立即 reject（若 close 後靜默回「查無資料」，去重會 fail-open
+ * 把每筆都判為新資料而整批重送下游）。
+ * 注入時建議走 'w-orm-lmdb/src/WOrmLmdb.mjs'（原生 ESM）而非套件主入口
+ * （主入口是 UMD bundle，以 CJS 互通載入，多繞一層互通層）。
+ *
+ * 【主鍵設計是整個去重的命脈】w-orm-lmdb 固定以記錄的 id 欄位作為 LMDB key，
+ * 且預設（autoGenPk:true）在 id 不是非空字串時自動產生隨機值——隨機 id 代表
+ * 每次寫入都是新 key，去重會靜默失效。故本層做兩道防線：①開庫時一律
+ * autoGenPk:false，讓 ORM 本身拒收無 id 之記錄；②assertId 先擋，給出可讀的
+ * 錯誤訊息並額外檢查 key 長度上限。
+ *
+ * 【path／db／cl 三者皆必填】w-orm-lmdb 對缺漏值有預設（db 缺 → 'worm'、cl 缺 → 'test'），
+ * 而落錯庫的後果是開到一個空 collection：去重全部落空且沒有任何錯誤訊息，
+ * 只看得到「這輪新增特別多」。故此處一律拒收空值，寧可啟動即失敗。
+ *
+ * 【close 不可省】close() 釋放 LMDB env 的檔案鎖。未關閉時 Windows 下該資料夾會被
+ * 行程持有，後續刪除靜默失敗，且存活行程仍讀得到舊映射（「刪了、重建了」的假象）。
+ *
+ * @param {{WOrm:Function, path:string, db:string, cl:string}} opt WOrm 為注入之 ORM 建構函數
+ *     （如 w-orm-lmdb 之 WOrm，見上方「WOrm 由外部注入」）
+ * @returns {object} 集合物件：{ cl, raw, select, get, insertNew, patch, replace, del, count, close }
+ */
+export function openCollection(opt = {}) {
+    const { WOrm, path, db, cl } = opt
+    const bad = (v) => typeof v !== 'string' || v.trim() === ''
+    if (typeof WOrm !== 'function') throw new ContractError(`openCollection 的 WOrm（ORM 建構函數）必填，請注入 w-orm-lmdb 之 WOrm 或相容實作`)
+    if (bad(path)) throw new ContractError(`openCollection 的 path（LMDB 資料夾）必填且不可為空，收到：${JSON.stringify(path)}`)
+    if (bad(db)) throw new ContractError(`openCollection 的 db（資料庫名）必填且不可為空，收到：${JSON.stringify(db)}（省略會落到套件預設的 'worm'，等同開到空庫）`)
+    if (bad(cl)) throw new ContractError(`openCollection 的 cl（集合名）必填且不可為空，收到：${JSON.stringify(cl)}`)
+    // autoGenPk:false —— 主鍵一律由呼叫端自備（見上方「主鍵設計」）
+    const wo = WOrm({ url: path, db, cl, autoGenPk: false })
+
+    return {
+        cl,
+        raw: wo,
+
+        /** 條件查詢（mingo 語法）；不給 find 則回全部 */
+        select: (find) => wo.select(find),
+
+        /** 主鍵直讀（O(1)，不經 select 的全表掃描）；不存在回 null */
+        async get(id) {
+            return (await wo.selectByPk(String(id ?? '').trim())) || null
+        },
+
+        /**
+     * 批次插入去重：回傳實際新增者。
+     *
+     * 走 LMDB key 路徑（nInserted===1 即為新項目），O(k) 操作，不隨資料量成長而變慢；
+     * 「檢查未存在」與「寫入」由 LMDB 於同一寫交易內原子完成（ifNoExists），無競態空窗。
+     *
+     * 【returnList:true 是這裡的關鍵】聚合計數只回答「有幾筆是新的」，而下游要的是
+     *   「是哪幾筆」——fresh 清單決定後續要對誰花錢（補抓內文、送 AI、推播）。
+     *   在 1.0.20 提供 returnList 之前，只能逐筆呼叫 insert([單筆]) 以 nInserted===1 反推，
+     *   代價是 N 次呼叫，完全用不到 insert 內部「以 Promise.all 一次送出、由 LMDB 合併批次
+     *   寫交易」的優化。改為整批送之後，一輪數百筆從 N 次呼叫降為 1 次。
+     *
+     * 【回傳陣列與輸入等長保序】故可用索引映射回原記錄；套件保證
+     *   filter(v => v.nInserted === 1).length 等於聚合模式的 nInserted。
+     */
+        async insertNew(items) {
+            const recs = (items || []).map((it) => ({ ...it, id: assertId(it.id, `insertNew(${cl})`) }))
+            if (recs.length === 0) return { added: [], addCount: 0, dupCount: 0 }
+            const lt = await wo.insert(recs, { returnList: true })
+            const added = recs.filter((_, i) => lt[i]?.nInserted === 1)
+            return { added, addCount: added.length, dupCount: recs.length - added.length }
+        },
+
+        /** 局部更新（深合併，適合純量欄位；陣列欄位請改用 replace） */
+        async patch(id, fields) {
+            await wo.save([{ ...fields, id: assertId(id, `patch(${cl})`) }])
+        },
+
+        /** 整筆取代（含陣列欄位）：先刪再插，避免深合併殘留舊陣列元素 */
+        async replace(rec) {
+            const id = assertId(rec.id, `replace(${cl})`)
+            try {
+                await wo.del({ id })
+            }
+            catch { /* 不存在即略過 */ }
+            await wo.insert([{ ...rec, id }])
+        },
+
+        async del(id) {
+            try {
+                await wo.del({ id: String(id) }); return true
+            }
+            catch {
+                return false
+            }
+        },
+
+        async count(find) {
+            const rs = await wo.select(find)
+            return Array.isArray(rs) ? rs.length : 0
+        },
+
+        async close() {
+            try {
+                await wo.close()
+            }
+            catch { /* 關閉失敗不影響已寫入資料 */ }
+        },
+    }
+}
+
+/**
+ * 開啟多個集合並在結束後一律關閉（即使中途拋錯）。
+ * @param {{WOrm:Function, path:string, db:string, cls:Record&lt;string,string>}} opt cls：對外名稱 → 實際集合名
+ * @param {Function} fn  ((cols)=>Promise)
+ * @returns {Promise&lt;any>} fn 的回傳值
+ */
+export async function withCollections(opt, fn) {
+    const cols = {}
+    const names = Object.keys(opt.cls || {})
+    for (const n of names) cols[n] = openCollection({ WOrm: opt.WOrm, path: opt.path, db: opt.db, cl: opt.cls[n] })
+    try {
+        return await fn(cols)
+    }
+    finally {
+        for (const n of names) await cols[n].close()
+    }
+}
+
+export default { openCollection, withCollections }
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+    
+    
+</div>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.5</a> on Tue Aug 18 2026 11:34:26 GMT+0800 (台北標準時間) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+</footer>
+
+<script>prettyPrint();</script>
+<script src="scripts/polyfill.js"></script>
+<script src="scripts/linenumber.js"></script>
+
+
+
+</body>
+</html>

@@ -1,0 +1,29 @@
+{
+  "name": "w-data-pipeline",
+  "version": "1.0.0",
+  "main": "dist/w-data-pipeline.umd.js",
+  "dependencies": {
+    "wsemi": "^1.8.73"
+  },
+  "devDependencies": {
+    "w-orm-lmdb": "^1.0.20",
+    "w-package-tools": "^1.1.12"
+  },
+  "scripts": {
+    "test": "mocha --parallel --timeout 60000",
+    "deploy": "gh-pages -d docs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yuda-lyu/w-data-pipeline.git"
+  },
+  "keywords": [
+    "package",
+    "tool",
+    "pipeline",
+    "data",
+    "nodejs"
+  ],
+  "author": "yuda-lyu(semisphere)",
+  "license": "MIT"
+}
