@@ -1,16 +1,16 @@
 {
   "name": "w-data-pipeline",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "main": "dist/w-data-pipeline.umd.js",
   "dependencies": {
-    "wsemi": "^1.8.85"
+    "wsemi": "^1.8.92"
   },
   "devDependencies": {
-    "w-orm-lmdb": "^1.0.30",
-    "w-package-tools": "^1.1.15"
+    "w-orm-lmdb": "^1.0.31",
+    "w-package-tools": "^1.1.16"
   },
   "scripts": {
-    "test": "mocha --parallel --timeout 60000",
+    "test": "mocha --parallel \"test/*.test.mjs\" --timeout 180000",
     "deploy": "gh-pages -d docs"
   },
   "repository": {
