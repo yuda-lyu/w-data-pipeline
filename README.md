@@ -11,6 +11,20 @@ A pipeline framework for data fetching, deduplication and staged processing.
 ## Documentation
 To view documentation or get support, visit [docs](https://yuda-lyu.github.io/w-data-pipeline/global.html).
 
+## Compatibility
+`openCollection({ WOrm, path, db, cl })` takes the ORM constructor from the caller (dependency injection). The injected ORM must follow the w-orm-lmdb interface: `select`, `selectByPk`, `insert`, `save`, `del`, `close`, where `save` and `del` report a single-record failure as `{ ok: 0, err }` instead of rejecting.
+
+`replace` additionally requires **w-orm-lmdb >= 1.0.41**: it overwrites the whole record in one write transaction with `save(data, { merge: false })`. Older versions and other backends ignore that option and silently deep-merge, which would leave stale keys behind. So the first `replace` per WOrm constructor runs a one-time self-check on an isolated probe collection `__wdp_probe__` under the same `path` and `db` (the probe record is removed on a best-effort basis and an empty folder remains there; no record of your collection is touched). If the supplied WOrm does not honor `merge: false` (top-level keys, arrays and nested objects are all checked), `replace` throws a `ContractError` mentioning `w-orm-lmdb >= 1.0.41` before writing anything. If the self-check itself cannot finish (for example the probe collection cannot be opened or read back), `replace` throws a plain `Error` and the next call tries again. `patch`, `del` and `insertNew` do not need `merge: false`. Because of that probe collection, `__wdp_probe__` is a reserved `cl` name and `openCollection` rejects it.
+
+The self-check assumes that support for `merge: false` is a property of the WOrm constructor, the same for every `cl`, `path` and `db`. A factory that routes to different backends or versions depending on those arguments is not supported.
+
+## Breaking changes
+Collection write failures are no longer silent (requires w-orm-lmdb >= 1.0.41 for `replace`):
+
+- `patch(id, fields)`: a single-record failure (`ok` other than `1`, i.e. `ok: 0` in w-orm-lmdb) now throws an `Error` whose message carries `cl`, `id` and the storage layer's `err` text. The collection layer adds no record content to the message, but `err` is passed through verbatim and an encoder error can quote the offending value. Previously the result was dropped and the call looked successful.
+- `replace(rec)`: now a single-transaction overwrite (`save` with `merge: false`) instead of `del` then `insert`. A failed write leaves the original record in place, and there is no gap in which another writer can slip in. A single-record failure throws like `patch`; a supplied WOrm without `merge: false` support throws `ContractError`.
+- `del(id)`: resolves to whether a record was really deleted (`true`), and to `false` when the id does not exist (it used to always resolve `true`). A single-record failure, or a rejection such as a closed collection, now throws instead of resolving `false`. The boolean is the storage layer's `nDeleted`: with w-orm-lmdb 1.0.41, several concurrent deleters of the same id can each get `true`, so do not use it to decide who deleted the record. The id is matched as given (not trimmed), unlike `get`, `patch` and `replace`.
+
 ## Installation
 
 ### Using npm(ES6 module):
