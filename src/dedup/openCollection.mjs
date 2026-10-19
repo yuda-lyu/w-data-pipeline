@@ -151,7 +151,12 @@ export function openCollection(opt = {}) {
         cl,
         raw: wo,
 
-        /** 條件查詢（mingo 語法）；不給 find 則回全部 */
+        /**
+         * 條件查詢；find 僅支援 w-orm 系列條件白名單，由注入之 WOrm 檢核：欄位等值 {欄:純量}（多欄為 AND）、
+         * $eq $ne $gt $gte $lt $lte（值為純量）、$in $nin（值為純量陣列）、文件層 $and $or（值為條件物件之非空陣列）。
+         * 不給 find（未給、undefined 或 {}）則回全部；傳了值卻不是條件物件，或使用白名單外之運算子（如 $regex $not $exists），
+         * 由 WOrm 整批 reject（須為已實作系列白名單之 WOrm；舊版 WOrm 可能仍接受而不在此保證內）
+         */
         select: (find) => wo.select(find),
 
         /** 主鍵直讀（O(1)，不經 select 的全表掃描）；不存在回 null */
@@ -229,6 +234,7 @@ export function openCollection(opt = {}) {
             return assertSaved(r?.[0], 'del', cl, key).nDeleted === 1
         },
 
+        /** 條件計數；find 規則同 select（系列條件白名單），不給 find 則計全部 */
         async count(find) {
             const rs = await wo.select(find)
             return Array.isArray(rs) ? rs.length : 0
