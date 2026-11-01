@@ -28,17 +28,22 @@ function isRunnable(x) {
  * 若兩者都不拋，父層會把失敗的子管道記成成功、子管道的 onError 變成死碼；
  * 若兩者都拋，頂層呼叫者得 try/catch 再從 e.report 撈同一份明細，忘了撈就全丟。
  *
- * 【鎖與日誌皆由外部注入】呼叫端通常已有既定的鎖檔與日誌格式（且常有巡檢工具
- * 依固定格式解析），套件自帶實作只會產生第二套不相容的檔案。
+ * 【鎖與日誌：套件提供可選之預設實作，外部仍可注入自有實作】呼叫端通常已有既定的
+ * 鎖檔與日誌格式（且常有巡檢工具依固定格式解析），故介面只約定 spec.lock
+ * （acquire() 回 { ok, message, release }）與 spec.log（{info,warn,error}），任何符合者皆可注入；
+ * 套件另提供 acquireLock（執行鎖）、deadlineMsOf（由排程上限推導截止）、
+ * createLogger／createRunLogger（落檔日誌）作為可選之預設實作，不用也不影響既有行為。
  *
  * @param {object} spec
  * @param {string} spec.name                       管道名（日誌識別）
  * @param {Array} spec.stages                      階段清單；元素可為 defineStage／definePipeline 之產出，
  *                                                 或可直接被 defineStage 接受的 spec 物件
- * @param {object} [spec.log]                      logger（{info,warn,error}）；未給則由父脈絡繼承
+ * @param {object} [spec.log]                      logger（{info,warn,error}）；未給則由父脈絡繼承；
+ *                                                 預設實作可用 createLogger／createRunLogger
  * @param {object} [spec.deps]                     本管道專屬相依（會覆蓋父脈絡的同名鍵）
- * @param {number} [spec.deadlineMs]               本管道的軟性時間預算
- * @param {{acquire:Function}|Function} [spec.lock] 執行鎖；acquire() 回 { ok, message, release }
+ * @param {number} [spec.deadlineMs]               本管道的軟性時間預算；由排程上限推導可用 deadlineMsOf
+ * @param {{acquire:Function}|Function} [spec.lock] 執行鎖；acquire() 回 { ok, message, release }；
+ *                                                 預設實作可用 () => acquireLock(file, { staleMs })
  * @param {Function} [spec.onStart]  ((ctx)=>void)             起始日誌鉤子（不給則印預設行）
  * @param {Function} [spec.onEnd]  ((report, ctx)=>void)       結束日誌鉤子（不給則印預設行）
  * @param {Function} [spec.onStageEnd]  ((info)=>void)         逐段日誌鉤子（不給則印預設行）
