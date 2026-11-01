@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    
+    <meta charset="utf-8">
+    <title>budget/deadline.mjs - Documentation</title>
+    
+    
+    <script src="scripts/prettify/prettify.js"></script>
+    <script src="scripts/prettify/lang-css.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc.css">
+    <script src="scripts/nav.js" defer></script>
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+
+<input type="checkbox" id="nav-trigger" class="nav-trigger" />
+<label for="nav-trigger" class="navicon-button x">
+  <div class="navicon"></div>
+</label>
+
+<label for="nav-trigger" class="overlay"></label>
+
+<nav >
+    
+    
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ContractError.html">ContractError</a></li><li><a href="PipelineError.html">PipelineError</a></li><li><a href="StageError.html">StageError</a></li></ul><h3>Global</h3><ul><li><a href="global.html#DEADLINE_FLOOR_MS">DEADLINE_FLOOR_MS</a></li><li><a href="global.html#DEADLINE_MARGIN_MS">DEADLINE_MARGIN_MS</a></li><li><a href="global.html#DEFAULT_DROP_PARAMS">DEFAULT_DROP_PARAMS</a></li><li><a href="global.html#DEFAULT_UNWRAP_RULES">DEFAULT_UNWRAP_RULES</a></li><li><a href="global.html#MAX_KEY_BYTES">MAX_KEY_BYTES</a></li><li><a href="global.html#MERGE_FALSE_NEED">MERGE_FALSE_NEED</a></li><li><a href="global.html#PROBE_CL">PROBE_CL</a></li><li><a href="global.html#WDataPipeline">WDataPipeline</a></li><li><a href="global.html#__bagMap">__bagMap</a></li><li><a href="global.html#__execute">__execute</a></li><li><a href="global.html#__kind">__kind</a></li><li><a href="global.html#acquireLock">acquireLock</a></li><li><a href="global.html#admit">admit</a></li><li><a href="global.html#assertMergeFalse">assertMergeFalse</a></li><li><a href="global.html#assertSaved">assertSaved</a></li><li><a href="global.html#attemptFetch">attemptFetch</a></li><li><a href="global.html#budgetOf">budgetOf</a></li><li><a href="global.html#busyMessage">busyMessage</a></li><li><a href="global.html#byRole">byRole</a></li><li><a href="global.html#callerStaleOf">callerStaleOf</a></li><li><a href="global.html#cliFail">cliFail</a></li><li><a href="global.html#close">close</a></li><li><a href="global.html#count">count</a></li><li><a href="global.html#createContext">createContext</a></li><li><a href="global.html#createFetcherRegistry">createFetcherRegistry</a></li><li><a href="global.html#createIdentity">createIdentity</a></li><li><a href="global.html#createLogger">createLogger</a></li><li><a href="global.html#createRunLogger">createRunLogger</a></li><li><a href="global.html#createSeenStore">createSeenStore</a></li><li><a href="global.html#deadlineMsOf">deadlineMsOf</a></li><li><a href="global.html#defaultIdentityOf">defaultIdentityOf</a></li><li><a href="global.html#defineFetcher">defineFetcher</a></li><li><a href="global.html#definePipeline">definePipeline</a></li><li><a href="global.html#defineStage">defineStage</a></li><li><a href="global.html#del">del</a></li><li><a href="global.html#describe">describe</a></li><li><a href="global.html#elapsed">elapsed</a></li><li><a href="global.html#expired">expired</a></li><li><a href="global.html#file">file</a></li><li><a href="global.html#get">get</a></li><li><a href="global.html#has">has</a></li><li><a href="global.html#idOf">idOf</a></li><li><a href="global.html#identity">identity</a></li><li><a href="global.html#insertNew">insertNew</a></li><li><a href="global.html#inspectLock">inspectLock</a></li><li><a href="global.html#isHttpUrl">isHttpUrl</a></li><li><a href="global.html#isRunnable">isRunnable</a></li><li><a href="global.html#isTimeoutError">isTimeoutError</a></li><li><a href="global.html#keyOf">keyOf</a></li><li><a href="global.html#label">label</a></li><li><a href="global.html#makeDefaultIdentityOf">makeDefaultIdentityOf</a></li><li><a href="global.html#mapLimit">mapLimit</a></li><li><a href="global.html#mark">mark</a></li><li><a href="global.html#mergeFalseVerdicts">mergeFalseVerdicts</a></li><li><a href="global.html#normalizeContent">normalizeContent</a></li><li><a href="global.html#normalizeItem">normalizeItem</a></li><li><a href="global.html#normalizeItems">normalizeItems</a></li><li><a href="global.html#normalizeLogger">normalizeLogger</a></li><li><a href="global.html#normalizeUrl">normalizeUrl</a></li><li><a href="global.html#nullLogger">nullLogger</a></li><li><a href="global.html#oneline">oneline</a></li><li><a href="global.html#open">open</a></li><li><a href="global.html#openCollection">openCollection</a></li><li><a href="global.html#parseIsoDuration">parseIsoDuration</a></li><li><a href="global.html#patch">patch</a></li><li><a href="global.html#peek">peek</a></li><li><a href="global.html#pidAlive">pidAlive</a></li><li><a href="global.html#prev">prev</a></li><li><a href="global.html#probeMergeFalse">probeMergeFalse</a></li><li><a href="global.html#remainingMs">remainingMs</a></li><li><a href="global.html#replace">replace</a></li><li><a href="global.html#reserveMsOf">reserveMsOf</a></li><li><a href="global.html#reserveOf">reserveOf</a></li><li><a href="global.html#resolveIdentity">resolveIdentity</a></li><li><a href="global.html#resolveKeyOf">resolveKeyOf</a></li><li><a href="global.html#run">run</a></li><li><a href="global.html#runDetailFetch">runDetailFetch</a></li><li><a href="global.html#runListFetch">runListFetch</a></li><li><a href="global.html#runPipeline">runPipeline</a></li><li><a href="global.html#select">select</a></li><li><a href="global.html#sha1">sha1</a></li><li><a href="global.html#snapshot">snapshot</a></li><li><a href="global.html#stage">stage</a></li><li><a href="global.html#str">str</a></li><li><a href="global.html#unwrapRedirectUrl">unwrapRedirectUrl</a></li><li><a href="global.html#withCollections">withCollections</a></li><li><a href="global.html#withTag">withTag</a></li></ul>
+    
+</nav>
+
+<div id="main">
+    
+    <h1 class="page-title">budget/deadline.mjs</h1>
+    
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>// deadline.mjs — 由排程上限推導整輪截止:ISO-8601 時距解析、截止毫秒數(definePipeline 之 spec.deadlineMs 的推導件；自 srcRunner core/deadline.mjs 移入，行為與契約不變)
+//
+// 【為何需要】排程器之執行上限(如 Windows 工作排程器之 ExecutionTimeLimit)是外部硬上限:撞到即強制終止,連失敗通知都發不出。
+//   保證不撞上限要由程式自己規劃每輪時間——整輪截止＝上限減一段安全邊際,邊際吸收排程端啟動延遲、子程序強殺保險與
+//   單次外部呼叫超出其逾時之量。上限與截止各專案只該有一份換算,否則改排程時兩處靜默分歧。
+// 【下限】上限很短時(數分鐘)減去邊際會過小或為負;截止取下限,寧可讓排程上限去截斷,不讓每段都因預算為負而不開工。
+// 【整數】回傳毫秒數一律取整:下游對非整數各自靜默失效(子程序逾時退回預設、預算視為不限、AbortSignal.timeout 拋錯)。
+
+/** 截止之安全邊際(毫秒):截止＝上限 − 邊際 */
+export const DEADLINE_MARGIN_MS = 360_000
+
+/** 截止之下限(毫秒) */
+export const DEADLINE_FLOOR_MS = 600_000
+
+/**
+ * 解析 ISO-8601 時距(僅 PT…H…M…S)為分鐘數
+ *
+ * 只抓 `PT(\d+)M` 會把 PT1H30M 解成 30 分而讓截止靜默走偏,故時、分、秒三段皆認,寫錯即拋錯。
+ *
+ * @param {String} s 輸入時距字串(如 PT55M、PT1H30M、PT90S)
+ * @returns {Number} 回傳分鐘數(可含小數)
+ * @throws {Error} 非上述格式或全無數字時拋出
+ * @example
+ * console.log(parseIsoDuration('PT1H30M'), parseIsoDuration('PT90S'))
+ * // => 90 1.5
+ */
+export function parseIsoDuration(s) {
+    const m = String(s ?? '').match(/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/)
+    if (!m || (!m[1] &amp;&amp; !m[2] &amp;&amp; !m[3])) throw new Error(`須為 ISO-8601 時距（如 PT55M、PT1H30M），收到：${JSON.stringify(s)}`)
+    return Number(m[1] || 0) * 60 + Number(m[2] || 0) + Number(m[3] || 0) / 60
+}
+
+/**
+ * 由排程上限推導整輪截止毫秒數:max(下限, round(上限分鐘 × 60000) − 邊際)
+ *
+ * @param {Number} limitMin 輸入排程上限分鐘數(非負有限數)
+ * @param {Object} [opt={}] 輸入設定物件，非物件視為 {}
+ * @param {Number} [opt.marginMs=DEADLINE_MARGIN_MS] 輸入安全邊際毫秒數(非負)，非有效值用預設 360000
+ * @param {Number} [opt.floorMs=DEADLINE_FLOOR_MS] 輸入截止下限毫秒數(正數)，非有效值用預設 600000
+ * @returns {Number} 回傳截止毫秒數(正整數)
+ * @throws {Error} limitMin 非非負有限數時拋出
+ * @example
+ * console.log(deadlineMsOf(20), deadlineMsOf(55), deadlineMsOf(5))
+ * // => 840000 2940000 600000
+ *
+ * console.log(deadlineMsOf(20, { marginMs: 60000 }))
+ * // => 1140000
+ *
+ * //作為 definePipeline 之 spec.deadlineMs：排程上限 20 分鐘 → 整輪截止 14 分鐘
+ * let p = definePipeline({ name: 'job', stages, deadlineMs: deadlineMsOf(20) })
+ */
+export function deadlineMsOf(limitMin, opt = {}) {
+
+    //check
+    if (!(Number.isFinite(limitMin) &amp;&amp; limitMin >= 0)) {
+        throw new Error(`deadlineMsOf 需要非負之排程上限分鐘數，收到：${String(limitMin)}`)
+    }
+    if (opt === null || typeof opt !== 'object') {
+        opt = {}
+    }
+    const marginMs = Number.isFinite(opt.marginMs) &amp;&amp; opt.marginMs >= 0 ? opt.marginMs : DEADLINE_MARGIN_MS
+    const floorMs = Number.isFinite(opt.floorMs) &amp;&amp; opt.floorMs > 0 ? opt.floorMs : DEADLINE_FLOOR_MS
+
+    return Math.round(Math.max(floorMs, Math.round(limitMin * 60_000) - marginMs))
+}
+
+export default { parseIsoDuration, deadlineMsOf, DEADLINE_MARGIN_MS, DEADLINE_FLOOR_MS }
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+    
+    
+</div>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.5</a> on Sun Nov 01 2026 18:44:42 GMT+0800 (台北標準時間) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+</footer>
+
+<script>prettyPrint();</script>
+<script src="scripts/polyfill.js"></script>
+<script src="scripts/linenumber.js"></script>
+
+
+
+</body>
+</html>
