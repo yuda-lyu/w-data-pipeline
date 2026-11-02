@@ -90,10 +90,29 @@
 
 ## R7 預設實作之相依邊界
 
-**規則**:①不依賴 w-dispatch-ai(`capSeat` 只對席位物件做鴨子型別淺拷貝與 getter 定義);②`createLogger` 之 `clock` 為鴨子型別,只呼叫 `stamp8()` 與 `iso8`,不 import 任何時鐘實作(測試用 wsemi `genClockTZ` 產生);③`cliFail` 之失敗摘要委派 wsemi `execCliFailDetail`(`wsemi >= 1.9.39`),本套件不內嵌副本;④不 import `lodash-es`(用 wsemi 既有函數與原生語法);⑤`oneline` 維持本套件既有版(`src/util/oneline.mjs`),不動。
+**規則**:①不依賴 w-dispatch-ai(`capSeat` 只對席位物件做鴨子型別淺拷貝與 getter 定義);②`createLogger` 之 `clock` 為鴨子型別,只呼叫 `stamp8()` 與 `iso8`,不 import 任何時鐘實作(測試用 wsemi `genClockTZ` 產生);③`cliFail` 之失敗摘要委派 wsemi `execCliFailDetail`(`wsemi >= 1.9.39`),本套件不內嵌副本;④不 import `lodash-es`(用 wsemi 既有函數與原生語法);⑤`oneline` 維持本套件既有版(`src/util/oneline.mjs`),不另引入他套件之實作;其 `n` 之檢查改由本套件自行負責,見 R8。
 
 **測試**:`unit-run-logger` 之 `[新增] clock 為鴨子型別` 案;盤點指令見 R5。
+
+## R8 傳給 wsemi 之值須由本套件自行檢查、轉型,不依賴 wsemi 之寬鬆處置(wsemi 第 221 項第二批第 3 輪,下游先行,2026-11-02 r3pl)
+
+**規則**:wsemi 第 3 輪起,`strTruncate` 之 `maxLen` 為必須參數(以 `iseint` 之 count 判定,未給或非預期即拋錯);`interp1` 之無效 px 元素原位輸出 `{ err }`;`arrGroupByMaxmin`／`arrLookupByMaxmin` 之上下限無效即拋錯。本套件傳給上列函數之值須先自行以 `iseint`／`isenum` 判定、轉型,有效才傳入;無效時照本套件文件所載語意處置,不靠 wsemi 對無效值之寬鬆回傳。`oneline(s, n = 200)`:`iseint(n, { use: 'count' })` 為真才以 `Number(n)` 交給 `strTruncate`,否則回壓平後之整行(JSDoc「非有效值則不截斷」由本函數自行實現)。
+
+**站點全集與判準**(2026-11-02):
+
+| 站點 | wsemi 函數 | 傳入值來源 | 判準 |
+|---|---|---|---|
+| `src/util/oneline.mjs:22-26`(檢查 23、呼叫 26) | `strTruncate(line, Number(n))` | `line` 為本函數壓平後字串;`n` 為呼叫端參數 | 已套:`iseint` count 判定,有效才轉數字傳入 |
+| `oneline` 之呼叫端 `src/core/definePipeline.mjs`(5 處)、`src/fetch/runDetailFetch.mjs`(9 處)、`src/fetch/runListFetch.mjs`(7 處) | — | `n` 皆為字面數字(40／120／200／300／500)或未給 | 不適用(恆有效;行為不變) |
+| `interp1`／`arrGroupByMaxmin`／`arrLookupByMaxmin` | — | — | 不適用:`src/` 無呼叫(站點 0) |
+
+**唯一行為差異(r3pl 實測,806 組 s×n 差分 25 組)**:改前 `oneline` 的 `n` 經 wsemi `isp0int`／`cint` 判定,該判定寬鬆到接受 `'0x10'`、`'0b11'`、`new Number(5)`、`new String('5')`(分別截於 16、3、5、5 字);依 `iseint` count 與 JSDoc「非有效值則不截斷」,此 4 種屬無效,現改為不截斷。其餘 58 種 `n`(共 62 種;有效值、`0`、`'200'`、未給、`null`、`-1`、`1.5`、`Infinity`、`'abc'`、`[]`、`{}`、`5n`、`Symbol` 等)新舊輸出逐字相同。全部站內呼叫端皆傳字面數字,不受影響。
+
+**盤點指令**:`Grep "interp1|arrGroupByMaxmin|arrLookupByMaxmin|strTruncate" src`(僅 `src/util/oneline.mjs` 之 import 與 1 處呼叫);`Grep "oneline\(" src`(確認 `n` 皆字面數字);新增對上列 wsemi 函數之呼叫須先補檢查並登記於本表。
+
+**測試**:`test/unit-oneline.test.mjs`(72 案:壓平空白、`n` 有效值 24 種、非有效值 38 種〔含上述 4 種〕、新舊逐字差分、第 3 輪嚴格版替身下不拋錯且無效 `n` 不抵達 `strTruncate`、有效 `n` 以數字型別傳入);輔助 `test/tools/strictWsemi.mjs`(嚴格版替身與載入器)、`test/tools/strictWsemiHooks.mjs`(resolve 鉤子)、`test/tools/legacyOneline.mjs`(改前版與其依賴之寬鬆 `strTruncate` 複本)。指令 `npx mocha --no-parallel test/unit-oneline.test.mjs --timeout 180000`(經 `quiet-run --lock`)。修前紅:改前碼 7 案轉紅(5 案為 4 種寬鬆 `n` 與差異案,2 案為嚴格版下拋錯與無效 `n` 抵達 `strTruncate`);變異 15 個全數轉紅(拿掉檢查、回空字串、不轉數字、用途 safe／index／timer、isenum 取代、預設值、trim、壓平、截長 +1、檢查反向、包裝物件解包)。
 
 ## 破壞性變更紀錄
 
 - **本次(w-orm-lmdb >= 1.0.41 起)**:`patch`/`replace` 寫入單筆失敗由靜默改為拋錯;`replace` 改為單一交易原子覆寫;`del` 回傳值語意改為「是否真的刪掉」(刪除不存在 id 回 `false`,原恆回 `true`;失敗改為拋錯,原回 `false`);`replace` 要求注入之 WOrm 支援 `merge:false`(w-orm-lmdb >= 1.0.41),否則拋錯.
+- **2026-11-02(r3pl,wsemi 第 3 輪下游先行)**:`oneline` 對 4 種舊寬鬆無效 `n`(`'0x10'`、`'0b11'`、`new Number(5)`、`new String('5')`)由「截斷」改為「不截斷」(依 `iseint` count 與 JSDoc「非有效值則不截斷」);站內呼叫端皆傳字面數字,無影響。詳見 R8.

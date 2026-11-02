@@ -22,3 +22,14 @@
 - **srcRunner 原測試之案數以原檔為準**:`unit-budget.test.mjs` 實有 6 個 `it`(單據稱 7 案).
 - **UMD 建置驗證**:以腳本呼叫 `w-package-tools/src/rollupFiles.mjs`,`fdTar` 指向 `./tmp/<夾>/dist`(不動 `./dist`),再 `createRequire` 載入驗證建置與 `require` 形狀(腳本樣例存主控任務夾證據 `pl39-evidence/build.mjs`);預設實作引入 `fs`／`path` 會得到「browser bundle depends on Node.js built-in modules」警告(Node 內建模組被視為外部,功能無礙).
 - **npm i 副作用**:`npm i wsemi@^…` 會補 `package.json` 檔尾換行、並把 `package-lock.json` 自身版號同步為 `package.json` 的 version;非 version 變更.
+
+## 下游先行(wsemi 第 221 項第 3 輪:strTruncate 等改嚴格,2026-11-02 r3pl)
+
+- **「改用 iseint 取代舊判定」不是逐字等價,先量測再下結論**:舊 `oneline` 靠 wsemi `isp0int`／`cint` 判 `n`,實測接受 `'0x10'`(截於 16)、`'0b11'`(3)、`new Number(5)`、`new String('5')`(5),`iseint(count)` 全拒;其餘 58 種 `n` 新舊相同。派工單曾假設包裝物件「改前改後逐字相同」,量測推翻——寬鬆行為要用 s×n 矩陣探針(輸出 JSON 前後 diff)找,不憑文件推論。
+- **差分基準不可依賴待改的 wsemi 函數**:`test/tools/legacyOneline.mjs` 自帶寬鬆版 `strTruncate` 複本(只用 `isestr`／`isp0int`／`cint`／`strleft`),否則 wsemi 第 3 輪後基準跟著變嚴格、差分失去「改前」的意義。
+- **把替身換進「src 原檔」而非複本**:`module.register` 掛 `resolve` 鉤子,僅在父模組 URL 帶 `?strictWsemi=<序號>` 時把 `wsemi/src/strTruncate.mjs` 導向替身,再以 `import(url + '?strictWsemi=1')` 載入原檔;替身模組 URL 與測試匯入者相同,故其 `calls` 紀錄陣列為同一份,可斷言「實際轉給 wsemi 之值」(型別 number、無效 `n` 根本不抵達)。mocha `--parallel`(子行程)下可用。
+- **只靠「不拋錯」抓不到轉傳原值**:`n='200'` 原樣轉傳給嚴格替身也不拋(替身自己會判 count),須用紀錄陣列斷言 `typeof maxLen === 'number'` 才殺得掉「不轉數字」變異(M04)。
+- **`-0` 是有效 count**:`iseint(-0)` 為真,`Number(-0)` 為 `-0`;`assert.equal`(strict)用 `Object.is`,比 `-0` 與 `0` 要用 `===`。
+- **ESLint**:repo 有 `.eslintrc.js`(`brace-style` stroustrup、`quotes` single 且 `allowTemplateLiterals`),含單引號之標籤字串用樣板字串;單行物件方法 `{ f() { … } }` 會違規須展開;刻意用包裝物件的測試以檔頭 `/* eslint-disable no-new-wrappers */`。
+- **暫存 UMD 建置驗證**:`tmp/r3pl/build.mjs` 呼叫 `rollupFiles`(`fdTar: './tmp/r3pl/dist'`,不動 `./dist`),`createRequire` 載入後 `W.oneline(…)` 行為與 ESM 相同;新增 `iseint` import 不引入新警告(`fs`／`path` 外部化警告為既有)。
+- **npm 11 `install-scripts` 警告**:`npm i` 末尾列 5 個套件(lmdb 等)之安裝腳本被擋,不影響測試(lmdb 走預編譯)——150 案全綠為證。
