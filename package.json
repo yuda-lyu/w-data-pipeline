@@ -1,12 +1,12 @@
 {
   "name": "w-data-pipeline",
-  "version": "1.0.27",
+  "version": "1.0.28",
   "main": "dist/w-data-pipeline.umd.js",
   "dependencies": {
-    "wsemi": "^1.9.46"
+    "wsemi": "^1.9.48"
   },
   "devDependencies": {
-    "w-orm-lmdb": "^1.0.53",
+    "w-orm-lmdb": "^1.0.54",
     "w-package-tools": "^1.1.23"
   },
   "scripts": {
