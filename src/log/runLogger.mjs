@@ -1,4 +1,4 @@
-// runLogger.mjs — 內建日誌:每次執行一份日誌檔(兩種工廠,同一核心；definePipeline 之 spec.log 的可選預設實作；自 srcRunner core/ops/logger.mjs 移入，行為與契約不變)
+// runLogger.mjs — 內建日誌:每次執行一份日誌檔(兩種工廠,同一核心；definePipeline 之 spec.log 的可選預設實作；自執行殼 core/ops/logger.mjs 移入，行為與契約不變)
 //   createRunLogger({ root, getISO, echo }):open 與建立分離,檔名 {root}/{day}/{runId}[-{name}].log
 //   createLogger(name, { dir, clock, echo }):建構即 open(clock.stamp8(), day, name),檔名 {dir}/{day}/{stamp}-{name}.log
 //     (管道類消費端所用;另附 now／cliFail／elapsed)

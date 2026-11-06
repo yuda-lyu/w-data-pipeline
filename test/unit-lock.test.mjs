@@ -1,6 +1,6 @@
 // unit-lock.test.mjs — 執行鎖之判定與互斥:inspectLock 各狀態、持鎖者宣告之陳舊期限、同一行程互斥(nonce)、
 //   跨行程原子建立(真子行程)、空檔寬限、時鐘回撥、只釋放自己的鎖
-// 來源:自 srcRunner(w-task-runner)test/unit-lock.test.mjs(14 案)與 test/unit-util.test.mjs:24-75(4 案)逐字移植,
+// 來源:自執行殼(w-task-runner)test/unit-lock.test.mjs(14 案)與 test/unit-util.test.mjs:24-75(4 案)逐字移植,
 //   輸入與期望值不變,只改 import 與函數所在;it 標題前綴標原檔行號
 // 執行:npx mocha --no-parallel test/unit-lock.test.mjs --timeout 180000(暫存落 test/_tmp/lock-<pid>、lock-util-<pid>,測完即刪)
 

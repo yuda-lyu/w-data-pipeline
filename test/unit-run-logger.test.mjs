@@ -1,6 +1,6 @@
 // unit-run-logger.test.mjs — 落檔日誌之預設實作:createRunLogger(open 與建立分離、行格式、別名、withTag)、
 //   createLogger(建構即開檔、now／elapsed、cliFail 委派 wsemi execCliFailDetail)、輸入檢查
-// 來源:自 srcRunner(w-task-runner)test/unit-runner.test.mjs:80-113(2 案)與 test/unit-check-ops.test.mjs:34-49(2 案)逐字移植,
+// 來源:自執行殼(w-task-runner)test/unit-runner.test.mjs:80-113(2 案)與 test/unit-check-ops.test.mjs:34-49(2 案)逐字移植,
 //   輸入與期望值不變,只改 import 與函數所在(W.createRunLogger／W.createLogger → 直接 import;createClock → wsemi genClockTZ);
 //   it 標題前綴標原檔行號
 // 執行:npx mocha --no-parallel test/unit-run-logger.test.mjs --timeout 180000(暫存落 test/_tmp/run-logger-<pid>,測完即刪)
@@ -60,7 +60,7 @@ describe('unit-run-logger', function() {
         assert.throws(() => createLogger('x', {}), /dir, clock/)
     })
 
-    // ── 新增(原 srcRunner 測試未覆蓋之契約:檔頭所述「寫檔失敗吞掉」「同時輸出 stdout」「兩套方法名」「level 五字元對齊」) ──
+    // ── 新增(原執行殼測試未覆蓋之契約:檔頭所述「寫檔失敗吞掉」「同時輸出 stdout」「兩套方法名」「level 五字元對齊」) ──
     it('[新增] 寫檔失敗吞掉不拋、不中斷:日誌目錄被移除後 log 仍回傳整行', () => {
         const root = `${TMP}/log-swallow`
         const lg = createRunLogger({ root, getISO: () => 'T', echo: false })

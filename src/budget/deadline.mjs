@@ -1,4 +1,4 @@
-// deadline.mjs — 由排程上限推導整輪截止:ISO-8601 時距解析、截止毫秒數(definePipeline 之 spec.deadlineMs 的推導件；自 srcRunner core/deadline.mjs 移入，行為與契約不變)
+// deadline.mjs — 由排程上限推導整輪截止:ISO-8601 時距解析、截止毫秒數(definePipeline 之 spec.deadlineMs 的推導件；自執行殼 core/deadline.mjs 移入，行為與契約不變)
 //
 // 【為何需要】排程器之執行上限(如 Windows 工作排程器之 ExecutionTimeLimit)是外部硬上限:撞到即強制終止,連失敗通知都發不出。
 //   保證不撞上限要由程式自己規劃每輪時間——整輪截止＝上限減一段安全邊際,邊際吸收排程端啟動延遲、子程序強殺保險與

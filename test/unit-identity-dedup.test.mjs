@@ -83,7 +83,7 @@ describe('identity-dedup', function() {
             assert.strictEqual(idt.of(null), '')
         })
 
-        it('tai-news 型既有鍵: sha1(原始網址.trim()), 以獨立參考實作比對', function() {
+        it('使用端乙型既有鍵: sha1(原始網址.trim()), 以獨立參考實作比對', function() {
             let idt = createIdentity({ keyOf: 'raw', identityOf: (it) => it.url })
             let url = 'https://example.com/news/1?utm_source=rss'
             //identityOf直取url: 不正規化, 帶utm者鍵不同於乾淨網址
@@ -91,7 +91,7 @@ describe('identity-dedup', function() {
             assert.notStrictEqual(idt.of({ url }), refSha1('https://example.com/news/1'))
         })
 
-        it('tai-kns-trade 型既有鍵: sha1(正規化後網址), 與 tai-news 型算出不同鍵', function() {
+        it('使用端甲型既有鍵: sha1(正規化後網址), 與使用端乙型算出不同鍵', function() {
             let url = 'https://example.com/news/1?utm_source=rss'
             let idtKns = createIdentity({ keyOf: 'raw' }) //預設自然鍵即canonical
             let idtNews = createIdentity({ keyOf: 'raw', identityOf: (it) => it.url })

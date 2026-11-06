@@ -1,4 +1,4 @@
-// executionLock.mjs — 單例執行鎖，避免排程重疊（definePipeline 之 spec.lock 的可選預設實作；自 srcRunner core/lock.mjs 移入，行為與契約不變）
+// executionLock.mjs — 單例執行鎖，避免排程重疊（definePipeline 之 spec.lock 的可選預設實作；自執行殼 core/lock.mjs 移入，行為與契約不變）
 //
 // 【陳舊鎖】前次執行被強制中止（TerminateProcess／當機）時 finally 不會執行，鎖檔殘留。
 //   故鎖檔記 pid 與時間：該 pid 已不存在、或持有超過陳舊期限即視為殘留可接管——否則一次崩潰就會讓排程永久停擺。

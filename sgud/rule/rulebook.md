@@ -57,9 +57,9 @@
 
 **測試**:無新增(僅註解變更,行為不變);`npm test` 104 案全綠為不變證據.
 
-## R5 預設實作(執行鎖／截止／預算／日誌)之行為與契約以 srcRunner 原始碼為準,不改語意(Gitea #39)
+## R5 預設實作(執行鎖／截止／預算／日誌)之行為與契約以執行殼原始碼為準,不改語意(Gitea #39)
 
-**規則**:`src/lock/`、`src/budget/`、`src/log/` 四組件(自 srcRunner `core/lock.mjs`、`core/deadline.mjs`、`core/budget.mjs`、`core/ops/logger.mjs` 移入)為 `spec.lock`／`spec.deadlineMs`／ctx 時間預算消費／`spec.log` 之**可選預設實作**(外部仍可注入自有實作,`definePipeline` 介面不變)。下列為**契約**,改動須連動消費端(4 個下游套件之巡檢與日誌解析、`略過本輪` 字樣比對),不得單方改字:
+**規則**:`src/lock/`、`src/budget/`、`src/log/` 四組件(自執行殼 `core/lock.mjs`、`core/deadline.mjs`、`core/budget.mjs`、`core/ops/logger.mjs` 移入)為 `spec.lock`／`spec.deadlineMs`／ctx 時間預算消費／`spec.log` 之**可選預設實作**(外部仍可注入自有實作,`definePipeline` 介面不變)。下列為**契約**,改動須連動消費端(4 個下游套件之巡檢與日誌解析、`略過本輪` 字樣比對),不得單方改字:
 
 | 契約 | 內容 | 位置 |
 |---|---|---|
@@ -70,13 +70,13 @@
 | 預算介面 | `budgetOf` 回 `{ expired, remainingMs, shouldStop, capMs, capSeat }`;`capSeat` 之 `budgetMs` 為可列舉 getter | `src/budget/budget.mjs` |
 | 日誌格式 | 行 `[ISO] LEVEL msg`,LEVEL 字面 `INFO `／`WARN `／`ERROR`(五字元對齊,解析端據此);檔名 `{root}/{day}/{runId}[-{name}].log`;每次執行一檔;open 與建立分離(open 前只輸出 stdout);寫檔失敗吞掉;`log／logWarn／logError` 與 `info／warn／error` 兩套名 | `src/log/runLogger.mjs` |
 
-**why**:srcRunner 混有排程外殼與管線秩序件兩種用途,秩序件依本質歸入本套件;主控裁定行為與契約隨件移動、不改語意(原則:執行秩序只有一份實作)。
+**why**:執行殼混有排程外殼與管線秩序件兩種用途,秩序件依本質歸入本套件;主控裁定行為與契約隨件移動、不改語意(原則:執行秩序只有一份實作)。
 
-**與 srcRunner 原始碼之刻意差異(僅此,皆不改語意)**:①`callerStaleOf` 以 `opt.staleMs ?? null` 取代 `lodash-es/get.js`(呼叫端已確認 opt 為物件,等價;不隱性依賴 wsemi 之轉依賴);②`createLogger.cliFail` 之失敗摘要改用 wsemi `execCliFailDetail`(主控裁定;與原 `cliFailDetail` 同契約,細節差異見下);③檔頭與 JSDoc 僅改檔名、時鐘說明(`util/clock` → 鴨子型別/wsemi `genClockTZ`)並補 `definePipeline` 用法範例。**`execCliFailDetail` 與原 `cliFailDetail` 之細節差異(屬 wsemi 契約;實測 14 類輸入 10 同 4 異,腳本存主控任務夾證據 `pl39-evidence/diff-clifail.mjs`)**:僅在畸形輸入相異——`attempts` 為小數(`1.5`)或負數(`-1`)時原會顯示「，共試 1.5 次」、wsemi 不顯示;`stderr` 非字串(數字、Buffer)時原以 `String(x)` 轉字串顯示、wsemi 視為無.整數(含數字字串 `'3'`)、`0`、`null`／`undefined`／`{}`、多行與超長 stderr 皆相同;`execCli` 實際產出(整數 attempts、字串 stderr)不受影響.
+**與執行殼原始碼之刻意差異(僅此,皆不改語意)**:①`callerStaleOf` 以 `opt.staleMs ?? null` 取代 `lodash-es/get.js`(呼叫端已確認 opt 為物件,等價;不隱性依賴 wsemi 之轉依賴);②`createLogger.cliFail` 之失敗摘要改用 wsemi `execCliFailDetail`(主控裁定;與原 `cliFailDetail` 同契約,細節差異見下);③檔頭與 JSDoc 僅改檔名、時鐘說明(`util/clock` → 鴨子型別/wsemi `genClockTZ`)並補 `definePipeline` 用法範例。**`execCliFailDetail` 與原 `cliFailDetail` 之細節差異(屬 wsemi 契約;實測 14 類輸入 10 同 4 異,腳本存主控任務夾證據 `pl39-evidence/diff-clifail.mjs`)**:僅在畸形輸入相異——`attempts` 為小數(`1.5`)或負數(`-1`)時原會顯示「，共試 1.5 次」、wsemi 不顯示;`stderr` 非字串(數字、Buffer)時原以 `String(x)` 轉字串顯示、wsemi 視為無.整數(含數字字串 `'3'`)、`0`、`null`／`undefined`／`{}`、多行與超長 stderr 皆相同;`execCli` 實際產出(整數 attempts、字串 stderr)不受影響.
 
 **盤點指令**:`Grep "lodash|from '\.\./util|w-dispatch-ai" src/lock src/budget src/log`(僅 `budget.mjs` 檔頭註解提及 w-dispatch-ai,不得有 import);`Grep "^import" src/lock src/budget src/log`(只允許 `fs`、`path`、`wsemi/src/*`)。
 
-**測試**:`test/unit-lock.test.mjs`(srcRunner `unit-lock` 14 案＋`unit-util:24-75` 4 案,逐字移植,含 8 子行程取鎖與崩潰殘留接管)、`test/unit-budget.test.mjs`(原檔實有 6 個 `it`,派工單／建議檔稱 7 案,以原檔為準)、`test/unit-deadline.test.mjs`(5 案)、`test/unit-run-logger.test.mjs`(`unit-runner:80,100`＋`unit-check-ops:34,39` 共 4 案,另補 4 案:寫檔失敗吞掉、echo 與五字元對齊、兩套方法名同一函數、clock 鴨子型別)、`test/unit-default-impl.test.mjs`(整合 9 案);`it` 標題前綴 `[原檔簡名:行號]` 標原檔行號,`[新增]` 為原測試未覆蓋者。指令 `npx mocha --no-parallel test/unit-lock.test.mjs test/unit-budget.test.mjs test/unit-deadline.test.mjs test/unit-run-logger.test.mjs test/unit-default-impl.test.mjs --timeout 180000`(經 `quiet-run --lock`)。變異證明 26 個全數轉紅(腳本模式見經驗檔)。
+**測試**:`test/unit-lock.test.mjs`(執行殼 `unit-lock` 14 案＋`unit-util:24-75` 4 案,逐字移植,含 8 子行程取鎖與崩潰殘留接管)、`test/unit-budget.test.mjs`(原檔實有 6 個 `it`,派工單／建議檔稱 7 案,以原檔為準)、`test/unit-deadline.test.mjs`(5 案)、`test/unit-run-logger.test.mjs`(`unit-runner:80,100`＋`unit-check-ops:34,39` 共 4 案,另補 4 案:寫檔失敗吞掉、echo 與五字元對齊、兩套方法名同一函數、clock 鴨子型別)、`test/unit-default-impl.test.mjs`(整合 9 案);`it` 標題前綴 `[原檔簡名:行號]` 標原檔行號,`[新增]` 為原測試未覆蓋者。指令 `npx mocha --no-parallel test/unit-lock.test.mjs test/unit-budget.test.mjs test/unit-deadline.test.mjs test/unit-run-logger.test.mjs test/unit-default-impl.test.mjs --timeout 180000`(經 `quiet-run --lock`)。變異證明 26 個全數轉紅(腳本模式見經驗檔)。
 
 ## R6 執行鎖登記表 `HELD` 為模組級單一份;主入口與深層路徑須為同一引用
 

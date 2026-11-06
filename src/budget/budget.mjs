@@ -1,4 +1,4 @@
-// budget.mjs — 整輪時間預算的單一消費介面:各段只問這裡,不各自手寫防禦式判斷(自 srcRunner core/budget.mjs 移入，行為與契約不變)
+// budget.mjs — 整輪時間預算的單一消費介面:各段只問這裡,不各自手寫防禦式判斷(自執行殼 core/budget.mjs 移入，行為與契約不變)
 //
 // 【為何需要】截止(deadlineMs)由 w-data-pipeline 的 ctx 持有(remainingMs/expired),各段消費它時若各寫一份
 //   「ctx 有沒有這個函數、回值是不是 true」的防禦判斷,寫法必然分歧,且取值時機容易錯:在工作流開工時取一次剩餘時間,

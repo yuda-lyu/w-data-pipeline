@@ -19,7 +19,7 @@
 - **變異點挑選**:`EMPTY_GRACE_MS = 0` 這類「改常數」的變異可能存活(NTFS 的 mtime 可略大於 `Date.now()`,`diff < 0` 仍為真);改為直接取消分支才穩定轉紅.`release` 不自 `HELD` 註銷是**等價變異**(鎖檔已刪、nonce 每次隨機,僅差記憶體),要抓 `HELD.delete` 的守衛須變異為「無條件清除」並由「晚到的舊持有者 release 不清現持有者登記」案抓住.
 - **變異腳本(26 個)模式**:備份 → 取代恰 1 處 → 跑相關 mocha → `finally` 還原 → sha256 回驗;整批經 `quiet-run --lock` 只取一次鎖;`PL39_ONLY=M07,M09` 可只跑指定變異.
 - **「修前紅」對新增模組**:`git archive HEAD src` 解到 `./tmp/<夾>/before/` 再把新測試複製進去,import 缺模組即紅(夾在 repo 內,`node_modules` 靠往上層解析,不需連結).
-- **srcRunner 原測試之案數以原檔為準**:`unit-budget.test.mjs` 實有 6 個 `it`(單據稱 7 案).
+- **執行殼原測試之案數以原檔為準**:`unit-budget.test.mjs` 實有 6 個 `it`(單據稱 7 案).
 - **UMD 建置驗證**:以腳本呼叫 `w-package-tools/src/rollupFiles.mjs`,`fdTar` 指向 `./tmp/<夾>/dist`(不動 `./dist`),再 `createRequire` 載入驗證建置與 `require` 形狀(腳本樣例存主控任務夾證據 `pl39-evidence/build.mjs`);預設實作引入 `fs`／`path` 會得到「browser bundle depends on Node.js built-in modules」警告(Node 內建模組被視為外部,功能無礙).
 - **npm i 副作用**:`npm i wsemi@^…` 會補 `package.json` 檔尾換行、並把 `package-lock.json` 自身版號同步為 `package.json` 的 version;非 version 變更.
 

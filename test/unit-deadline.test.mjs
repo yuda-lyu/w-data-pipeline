@@ -1,5 +1,5 @@
 // unit-deadline.test.mjs — 由排程上限推導整輪截止:parseIsoDuration、deadlineMsOf(邊際、下限、取整、參數覆寫)
-// 來源:自 srcRunner(w-task-runner)test/unit-deadline.test.mjs(5 案)逐字移植,輸入與期望值不變,只改 import 與函數所在;it 標題前綴標原檔行號
+// 來源:自執行殼(w-task-runner)test/unit-deadline.test.mjs(5 案)逐字移植,輸入與期望值不變,只改 import 與函數所在;it 標題前綴標原檔行號
 // 執行:npx mocha --no-parallel test/unit-deadline.test.mjs --timeout 180000
 
 import assert from 'node:assert/strict'

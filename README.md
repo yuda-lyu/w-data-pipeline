@@ -26,7 +26,7 @@ Collection write failures are no longer silent (requires w-orm-lmdb >= 1.0.41 fo
 - `del(id)`: resolves to whether a record was really deleted (`true`), and to `false` when the id does not exist (it used to always resolve `true`). A single-record failure, or a rejection such as a closed collection, now throws instead of resolving `false`. The boolean is the storage layer's `nDeleted`: with w-orm-lmdb 1.0.41, several concurrent deleters of the same id can each get `true`, so do not use it to decide who deleted the record. The id is matched as given (not trimmed), unlike `get`, `patch` and `replace`.
 
 ## 預設實作（可選）
-`definePipeline` 對執行鎖（`spec.lock`）、截止（`spec.deadlineMs`）與日誌（`spec.log`）只約定介面，外部仍可注入自有實作；套件另提供下列**可選之預設實作**（自 srcRunner 移入，行為與契約不變），不用也不影響既有行為。皆可由主入口物件取得，或自深層路徑具名匯入（兩者為同一份實作）：
+`definePipeline` 對執行鎖（`spec.lock`）、截止（`spec.deadlineMs`）與日誌（`spec.log`）只約定介面，外部仍可注入自有實作；套件另提供下列**可選之預設實作**（自執行殼移入，行為與契約不變），不用也不影響既有行為。皆可由主入口物件取得，或自深層路徑具名匯入（兩者為同一份實作）：
 
 ```alias
 import WDataPipeline from 'w-data-pipeline/src/WDataPipeline.mjs'

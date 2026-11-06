@@ -1,5 +1,5 @@
 // unit-budget.test.mjs — 時間預算單一擁有者(src/budget/budget):各段只消費 budgetOf(ctx),不各自持有數字;選配段之子預算(reserveOf)與保留時間之取值器(reserveMsOf)
-// 來源:自 srcRunner(w-task-runner)test/unit-budget.test.mjs(7 案)逐字移植,輸入與期望值不變,只改 import 與函數所在;it 標題前綴標原檔行號
+// 來源:自執行殼(w-task-runner)test/unit-budget.test.mjs(7 案)逐字移植,輸入與期望值不變,只改 import 與函數所在;it 標題前綴標原檔行號
 // 執行:npx mocha --no-parallel test/unit-budget.test.mjs --timeout 180000
 
 import assert from 'node:assert/strict'
