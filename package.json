@@ -1,13 +1,13 @@
 {
   "name": "w-data-pipeline",
-  "version": "1.0.34",
+  "version": "1.0.35",
   "main": "dist/w-data-pipeline.umd.js",
   "dependencies": {
-    "wsemi": "^1.9.56"
+    "wsemi": "^1.9.57"
   },
   "devDependencies": {
-    "w-orm-lmdb": "^1.0.60",
-    "w-package-tools": "^1.1.26"
+    "w-orm-lmdb": "^1.0.61",
+    "w-package-tools": "^1.1.27"
   },
   "scripts": {
     "test": "mocha --parallel \"test/*.test.mjs\" --timeout 180000",
