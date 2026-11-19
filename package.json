@@ -1,6 +1,6 @@
 {
   "name": "w-data-pipeline",
-  "version": "1.0.47",
+  "version": "1.0.48",
   "main": "dist/w-data-pipeline.umd.js",
   "dependencies": {
     "wsemi": "^1.9.69"

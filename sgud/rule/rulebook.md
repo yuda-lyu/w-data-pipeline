@@ -110,7 +110,9 @@
 
 **盤點指令**:`Grep "interp1|arrGroupByMaxmin|arrLookupByMaxmin|strTruncate" src`(僅 `src/util/oneline.mjs` 之 import 與 1 處呼叫);`Grep "oneline\(" src`(確認 `n` 皆字面數字);新增對上列 wsemi 函數之呼叫須先補檢查並登記於本表。
 
-**測試**:`test/unit-oneline.test.mjs`(72 案:壓平空白、`n` 有效值 24 種、非有效值 38 種〔含上述 4 種〕、新舊逐字差分、第 3 輪嚴格版替身下不拋錯且無效 `n` 不抵達 `strTruncate`、有效 `n` 以數字型別傳入);輔助 `test/tools/strictWsemi.mjs`(嚴格版替身與載入器)、`test/tools/strictWsemiHooks.mjs`(resolve 鉤子)、`test/tools/legacyOneline.mjs`(改前版與其依賴之寬鬆 `strTruncate` 複本)。指令 `npx mocha --no-parallel test/unit-oneline.test.mjs --timeout 180000`(經 `quiet-run --lock`)。修前紅:改前碼 7 案轉紅(5 案為 4 種寬鬆 `n` 與差異案,2 案為嚴格版下拋錯與無效 `n` 抵達 `strTruncate`);變異 15 個全數轉紅(拿掉檢查、回空字串、不轉數字、用途 safe／index／timer、isenum 取代、預設值、trim、壓平、截長 +1、檢查反向、包裝物件解包)。
+**測試**:`test/unit-oneline.test.mjs`(72 案:壓平空白、`n` 有效值 24 種、非有效值 38 種〔含上述 4 種〕、新舊逐字差分、第 3 輪嚴格版替身下不拋錯且無效 `n` 不抵達 `strTruncate`、有效 `n` 以數字型別傳入);輔助 `test/tools/strictWsemi.mjs`(嚴格版替身與載入器)、`test/tools/strictWsemiHooks.mjs`(resolve 鉤子)、`test/tools/legacyOneline.mjs`(改前版與其依賴之寬鬆 `strTruncate`,**自足**:改前 `isp0int`／`cint`／`strleft`／`isestr` 之判定語意內嵌,零 wsemi import)。指令 `npx mocha --no-parallel test/unit-oneline.test.mjs --timeout 180000`(經 `quiet-run --lock`)。修前紅:改前碼 7 案轉紅(5 案為 4 種寬鬆 `n` 與差異案,2 案為嚴格版下拋錯與無效 `n` 抵達 `strTruncate`);變異 15 個全數轉紅(拿掉檢查、回空字串、不轉數字、用途 safe／index／timer、isenum 取代、預設值、trim、壓平、截長 +1、檢查反向、包裝物件解包)。
+
+**改前參考須自足(2026-11-19 補)**:測試中凡以「改前實作」作差分基準者,其語意(含判斷、轉型、截取)須內嵌於 `test/tools/`、不得呼叫現行 wsemi 函數——wsemi 升版(如 1.9.69 之 W-20:判斷函數只收原始值)會使基準之輸出隨之改變,差分即失去「改前」之意義。站點全集與判準(2026-11-19):`test/tools/legacyOneline.mjs`(已套:自足,零 wsemi import);`test/tools/strictWsemi.mjs`(刻意不套:第 3 輪契約替身,非改前參考,其判定即契約本體 `iseint` count,與產品同源);`test/unit-default-impl.test.mjs`、`test/unit-run-logger.test.mjs` 之 `genClockTZ`(不適用:為注入產品之時鐘輸入,非參考實作);`test/unit-identity-dedup.test.mjs`(不適用:參考實作用 node crypto,不呼叫 wsemi)。盤點指令:`Grep "^import .*wsemi" test`(命中 6 處、3 檔:`strictWsemi` 4、`unit-default-impl` 1、`unit-run-logger` 1;`legacyOneline` 0);新增改前參考時,命中 `test/tools/legacy*.mjs` 須為 0。比對指令(內嵌版對真舊版):`npm pack wsemi@1.9.44` 與 `@1.9.68` 解到 `./tmp/`,以改前呼叫鏈(`isestr`／`isp0int`／`cint`／`strleft`)對內嵌版跑 13 種字串 × 756 種 `n`,逐字相同(差異 0)。
 
 ## 破壞性變更紀錄
 

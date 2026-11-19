@@ -26,7 +26,7 @@
 ## 下游先行(wsemi 第 221 項第 3 輪:strTruncate 等改嚴格,2026-11-02 r3pl)
 
 - **「改用 iseint 取代舊判定」不是逐字等價,先量測再下結論**:舊 `oneline` 靠 wsemi `isp0int`／`cint` 判 `n`,實測接受 `'0x10'`(截於 16)、`'0b11'`(3)、`new Number(5)`、`new String('5')`(5),`iseint(count)` 全拒;其餘 58 種 `n` 新舊相同。派工單曾假設包裝物件「改前改後逐字相同」,量測推翻——寬鬆行為要用 s×n 矩陣探針(輸出 JSON 前後 diff)找,不憑文件推論。
-- **差分基準不可依賴待改的 wsemi 函數**:`test/tools/legacyOneline.mjs` 自帶寬鬆版 `strTruncate` 複本(只用 `isestr`／`isp0int`／`cint`／`strleft`),否則 wsemi 第 3 輪後基準跟著變嚴格、差分失去「改前」的意義。
+- **差分基準不可依賴待改的 wsemi 函數**:`test/tools/legacyOneline.mjs` 自帶寬鬆版 `strTruncate` 複本,否則 wsemi 第 3 輪後基準跟著變嚴格、差分失去「改前」的意義。**2026-11-19 修正(殷鑑)**:當時複本仍 import 現行 wsemi 之 `isestr`／`isp0int`／`cint`／`strleft`,只擋住了 `strTruncate`;wsemi 1.9.69(W-20:判斷函數只收原始值)使 `isp0int(new Number(5))` 轉 false,改前基準之輸出隨之改變,`[unit-oneline:9]` 轉紅(產品無誤)。**「改前」參考實作須連判斷函數一併凍結**:把改前之判定語意內嵌於測試工具(零 wsemi import),並以真舊版 wsemi(`npm pack wsemi@<舊版>` 解到 `./tmp/`)逐字比對內嵌版之輸出(見 R8 測試段之盤點與比對指令)。
 - **把替身換進「src 原檔」而非複本**:`module.register` 掛 `resolve` 鉤子,僅在父模組 URL 帶 `?strictWsemi=<序號>` 時把 `wsemi/src/strTruncate.mjs` 導向替身,再以 `import(url + '?strictWsemi=1')` 載入原檔;替身模組 URL 與測試匯入者相同,故其 `calls` 紀錄陣列為同一份,可斷言「實際轉給 wsemi 之值」(型別 number、無效 `n` 根本不抵達)。mocha `--parallel`(子行程)下可用。
 - **只靠「不拋錯」抓不到轉傳原值**:`n='200'` 原樣轉傳給嚴格替身也不拋(替身自己會判 count),須用紀錄陣列斷言 `typeof maxLen === 'number'` 才殺得掉「不轉數字」變異(M04)。
 - **`-0` 是有效 count**:`iseint(-0)` 為真,`Number(-0)` 為 `-0`;`assert.equal`(strict)用 `Object.is`,比 `-0` 與 `0` 要用 `===`。

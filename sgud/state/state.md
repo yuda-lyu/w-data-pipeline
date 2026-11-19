@@ -27,5 +27,6 @@
 - 發布後待辦(非本套件):4 套件(w-knowledge-capture 及其下游 3 套件)與專案端改自 `w-data-pipeline/src/…` 取用;執行殼刪除 `core/lock.mjs`、`core/deadline.mjs`、`core/budget.mjs`、`core/ops/logger.mjs`(由主控安排).
 - 集合層待裁示事項見 R1「待裁示」.
 - `oneline` 對 4 種舊寬鬆無效 `n`(`'0x10'`、`'0b11'`、`new Number(5)`、`new String('5')`)由截斷改為不截斷(R8);站內呼叫端皆傳字面數字,無影響;待主控確認可接受(派工單曾假設包裝物件新舊相同,實測不同).
-- wsemi 第 3 輪(主控稍後改 wsemi)後,本套件待再驗:`npm test` 全綠,`test/unit-oneline.test.mjs` 之差分基準自帶寬鬆版 `strTruncate` 複本,不受 wsemi 改動影響.
+- wsemi 第 3 輪後本套件再驗(2026-11-19,wsemi 1.9.69):`test/unit-oneline.test.mjs` 之差分基準原仍呼叫現行 wsemi 之判斷函數,W-20(判斷函數只收原始值)使 `[unit-oneline:9]` 轉紅;已改為基準自足(`test/tools/legacyOneline.mjs` 零 wsemi import,判定語意內嵌,見 R8「改前參考須自足」),全套 222 passing.
+- `test/tools/strictWsemi.mjs` 之第 3 輪替身與現行 wsemi 真 `strTruncate` 在「`str` 為有效非空字串」時逐格相同;`str` 無效時真版先驗 `str`(回 `''`)、替身先驗 `maxLen`(拋錯)——產品與測試皆不走此路徑,未改,待裁示是否對齊.
 - `oneline` 的 JSDoc 稱截斷後補「…」,實際輸出為 ASCII `...`(wsemi `strTruncate`):文件字面與輸出不符,本輪輸出須逐字不變故未動文字.
